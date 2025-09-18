@@ -32,7 +32,7 @@ orders = [
 ]
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
 
-
+#I think this one is good?
 def escape_html(str):
     str = str.replace("&", "&amp;")
     str = str.replace('"', "&quot;")
@@ -55,7 +55,7 @@ def escape_html(str):
 
     return str
 
-
+#This one doesn't need any edits
 def unescape_url(url_str):
     import urllib.parse
 
@@ -80,6 +80,7 @@ def parse_query_parameters(response):
         pairs[i[0]] = i[1]
     return pairs
 
+#this one is messy but it should work I think
 def render_tracking(order):
 
     #I think this function should work but it can only display one order with the way 
@@ -124,7 +125,7 @@ def render_tracking(order):
 """
     return result
 
-
+#this one is also messy but I think it will function
 def render_orders(order_filters: dict[str, str]):
     result = """
 <!DOCTYPE html>
@@ -185,8 +186,6 @@ def server(url: str) -> tuple[str | bytes, str]:
     This function should return two strings in a list or tuple. The first is the content to return
     The second is the content-type.
     """
-    # YOUR CODE GOES HERE!
-
     # step 1: process URL
 
     #Get rid of any extra queries (stuff after "?") in the URL
@@ -210,7 +209,7 @@ def server(url: str) -> tuple[str | bytes, str]:
     if url == "/" or url == "/about":
          filename = "about.html"
     elif url == "/orders" or url == "/admin/orders":
-        filename = "orders.html"
+        return render_orders()
     else:
         filename = "404.html"
 
