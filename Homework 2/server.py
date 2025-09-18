@@ -187,8 +187,8 @@ def server(url: str) -> tuple[str | bytes, str]:
         url = url[:query_pos]
     else:
         query = ""
-    print(query)
-    print(url)
+    #print(query)
+    #print(url)
 
     # step 2: routing and returning of content.
 
