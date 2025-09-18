@@ -64,17 +64,20 @@ def unescape_url(url_str):
 
 
 def parse_query_parameters(response):
-    # Split the query string into key-value pairs
+    response = response[1:] # get rid of '?'
+    unescape_url(response) # clean up escaped characters
+    values = response.split("=") # Split the query string into key-value pairs
 
-    #TODO: complete this function
-
-    # Initialize a dictionary to store parsed parameters
+    #Looping through the split up string. Every even position will be the key, every even+1 position is the value.
+    pairs = {}
+    i = 0
+    while i < len(values):
+        pairs[values[i]] = pairs[values[i+1]]
+        i += 2
+    return pairs
 
     # Iterate over each key-value pair
     # Split the pair by '=' to separate key and value
-
-    return {}
-
 
 def render_tracking(order):
 
@@ -150,7 +153,7 @@ def render_orders(order_filters: dict[str, str]):
 
     for order in order:
         result += "<tr>"
-        for item in orders:
+        for item in order:
             if item == "cost":
                 result += f"<td>{typeset_dollars(order[item])}</td>\n"
             else:
@@ -194,6 +197,13 @@ def server(url: str) -> tuple[str | bytes, str]:
     # step 2: routing and returning of content.
 
     #TODO Fix the routing to account for new hw 2 stuff
+
+    # / -- returns the "about" page for the company
+    # /about -- also returns the "about" page for the company
+    # /admin/orders -- returns a table of all orders
+    # /tracking/[anything] -- a page to show order status to the order-placer
+    # /images/main -- a special name for the front-page image of your website.
+    # /main.css -- the primary css file for your website. For now, please put all CSS in this file.
 
     #Returning the proper file
     if url == "/" or url == "/about":
