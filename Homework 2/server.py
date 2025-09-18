@@ -46,7 +46,7 @@ def escape_html(str):
     str = str.replace("%", "&#37;")
     str = str.replace("+", "&#43;")
     str = str.replace("-", "&#45;")
-    str = str.replace("/", "&#47;")    #Double check this one doesn't cause bugs
+    str = str.replace("/", "&#47;")
     str = str.replace(":", "&#58;")
     str = str.replace(";", "&#59;")
     str = str.replace("=", "&#61;")
@@ -66,6 +66,8 @@ def unescape_url(url_str):
 def parse_query_parameters(response):
     # Split the query string into key-value pairs
 
+    #TODO: complete this function
+
     # Initialize a dictionary to store parsed parameters
 
     # Iterate over each key-value pair
@@ -75,11 +77,91 @@ def parse_query_parameters(response):
 
 
 def render_tracking(order):
-    pass
+
+    #I think this function should work but it can only display one order with the way 
+    #the input is set up.
+
+    #note: referenced in class assignment 2 when setting this function up
+    result = """
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Order</title>
+
+</head>
+
+<body>
+
+    <table>
+        <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Cost</th>
+            <th>From</th>
+            <th>Address</th>
+            <th>Product</th>
+            <th>Notes</th>
+        </tr>"""
+
+    for item in order:
+        if item == "cost":
+            result += f"<td>{typeset_dollars(order[item])}</td>\n"
+        else:
+            result += f"<td>{order[item]}</td>\n"
+
+    result += """
+</body>
+</html>
+"""
+    return result
 
 
 def render_orders(order_filters: dict[str, str]):
-    pass
+    result = """
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Order</title>
+
+</head>
+
+<body>
+
+    <table>
+        <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Cost</th>
+            <th>From</th>
+            <th>Address</th>
+            <th>Product</th>
+            <th>Notes</th>
+        </tr>"""
+
+    for order in order:
+        result += "<tr>"
+        for item in orders:
+            if item == "cost":
+                result += f"<td>{typeset_dollars(order[item])}</td>\n"
+            else:
+                result += f"<td>{order[item]}</td>\n"
+        result += "</tr>"
+
+    result += """
+</body>
+</html>
+"""
+    return result
 
 
 # Provided function -- converts numbers like 42 or 7.347 to "$42.00" or "$7.35"
