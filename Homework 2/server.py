@@ -62,22 +62,24 @@ def unescape_url(url_str):
     # NOTE -- this is the only place urllib is allowed on this assignment.
     return urllib.parse.unquote_plus(url_str)
 
-
+# This one 100% works (at least testing at https://www.online-python.com/)
 def parse_query_parameters(response):
     response = response[1:] # get rid of '?'
-    unescape_url(response) # clean up escaped characters
-    values = response.split("=") # Split the query string into key-value pairs
+    values = response.split("&")
+    
+    #this loop turns "?color=%237766a9&mood=hate+it+it&name=buloova" into [['color', '#7766a9'], ['mood', 'hate it it'], ['name', 'buloova']]
+    for i in range(len(values)):
+        values[i] = values[i].split("=")
+        for j in range(len(values[i])):
+            values[i][j] = unescape_url(values[i][j])
 
-    #Looping through the split up string. Every even position will be the key, every even+1 position is the value.
+    #Looping through the split up string to turn it into a dictionary
     pairs = {}
     i = 0
     while i < len(values):
-        pairs[values[i]] = pairs[values[i+1]]
-        i += 2
+        pairs[values[i][0]] = values[i][1]
+        i += 1
     return pairs
-
-    # Iterate over each key-value pair
-    # Split the pair by '=' to separate key and value
 
 def render_tracking(order):
 
