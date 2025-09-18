@@ -73,6 +73,9 @@ def parse_query_parameters(response):
     # Iterate over each key-value pair
     # Split the pair by '=' to separate key and value
 
+    return {}
+
+
 def render_tracking(order):
 
     #I think this function should work but it can only display one order with the way 
