@@ -76,9 +76,8 @@ def parse_query_parameters(response):
     #Looping through the split up string to turn it into a dictionary
     pairs = {}
     i = 0
-    while i < len(values):
-        pairs[values[i][0]] = values[i][1]
-        i += 1
+    for i in values:
+        pairs[i[0]] = i[1]
     return pairs
 
 def render_tracking(order):
