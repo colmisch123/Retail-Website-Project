@@ -31,6 +31,14 @@ orders = [
     },
 ]
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
+def format_one_order(order):
+    result = ""
+    for item in order:
+        if item == "cost":
+            result += f"<td>{typeset_dollars(order[item])}</td>\n"
+        else:
+            result += f"<td>{order[item]}</td>\n"
+    return result
 
 #I think this one is good?
 def escape_html(str):
@@ -82,26 +90,16 @@ def parse_query_parameters(response):
 
 #this one is messy but it should work I think
 def render_tracking(order):
-
-    #I think this function should work but it can only display one order with the way 
-    #the input is set up.
-
     #note: referenced in class assignment 2 when setting this function up
     result = """
 <!DOCTYPE html>
-
 <html lang="en">
-
-<head>
-
-    <meta charset="UTF-8">
-
-    <title>Order</title>
-
-</head>
-
+    <head>
+        <title>Orders</title>
+        <link rel="stylesheet" href="../css/main.css">
+        <meta charset="UTF-8">
+    </head>
 <body>
-
     <table>
         <tr>
             <th>#</th>
@@ -111,15 +109,12 @@ def render_tracking(order):
             <th>Address</th>
             <th>Product</th>
             <th>Notes</th>
-        </tr>"""
-
-    for item in order:
-        if item == "cost":
-            result += f"<td>{typeset_dollars(order[item])}</td>\n"
-        else:
-            result += f"<td>{order[item]}</td>\n"
-
+        </tr>
+        <tr>"""
+    result += format_one_order(order)
     result += """
+        </tr>
+    </table>
 </body>
 </html>
 """
@@ -129,21 +124,23 @@ def render_tracking(order):
 def render_orders(order_filters: dict[str, str]):
     result = """
 <!DOCTYPE html>
-
 <html lang="en">
+    <head>
+        <title>Orders</title>
+        <link rel="stylesheet" href="../css/main.css">
+        <meta charset="UTF-8">
+    </head>
 
-<head>
+    <body>
+        <h2>Directory</h2>
+        <ul>
+            <li><a href="/about">Home page</a></li>
+            <li><a href="/orders">Orders</a></li>
+        </ul>
 
-    <meta charset="UTF-8">
-
-    <title>Order</title>
-
-</head>
-
-<body>
-
-    <table>
-        <tr>
+        <h3>Orders</h3>
+        <table>   
+            <tr>
             <th>#</th>
             <th>Status</th>
             <th>Cost</th>
@@ -152,18 +149,13 @@ def render_orders(order_filters: dict[str, str]):
             <th>Product</th>
             <th>Notes</th>
         </tr>"""
-
-    for order in order:
+    for order in orders:
         result += "<tr>"
-        for item in order:
-            if item == "cost":
-                result += f"<td>{typeset_dollars(order[item])}</td>\n"
-            else:
-                result += f"<td>{order[item]}</td>\n"
+        result += format_one_order(order)
         result += "</tr>"
-
     result += """
-</body>
+        </table>
+    </body>
 </html>
 """
     return result
@@ -191,7 +183,11 @@ def server(url: str) -> tuple[str | bytes, str]:
     #Get rid of any extra queries (stuff after "?") in the URL
     query_pos = url.find("?") #Referenced https://www.w3schools.com/python/ref_string_find.asp
     if query_pos != -1:
+        query = url[query_pos:]
         url = url[:query_pos]
+    else:
+        query = ""
+    print(query)
     print(url)
 
     # step 2: routing and returning of content.
