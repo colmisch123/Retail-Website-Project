@@ -30,6 +30,7 @@ orders = [
         "notes": "Wait he's alive?",
     },
 ]
+
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
 def format_one_order(order):
     result = ""
@@ -37,6 +38,7 @@ def format_one_order(order):
         if item == "cost":
             result += f"<td>{typeset_dollars(order[item])}</td>\n"
         else:
+            #TODO: Double check if I actually need escape_html() here
             result += f"<td>{order[item]}</td>\n"
     return result
 
@@ -96,7 +98,7 @@ def render_tracking(order):
 <html lang="en">
     <head>
         <title>Orders</title>
-        <link rel="stylesheet" href="../css/main.css">
+        <link rel="stylesheet" href="main.css">
         <meta charset="UTF-8">
     </head>
 <body>
@@ -127,7 +129,7 @@ def render_orders(order_filters: dict[str, str]):
 <html lang="en">
     <head>
         <title>Orders</title>
-        <link rel="stylesheet" href="../css/main.css">
+        <link rel="stylesheet" href="/main.css">
         <meta charset="UTF-8">
     </head>
 
@@ -168,56 +170,51 @@ def typeset_dollars(number):
 
 def server(url: str) -> tuple[str | bytes, str]:
     """
-    url is a *PARTIAL* URL. If the browser requests `http://localhost:4131/contact?name=joe#test`
-    then the `url` parameter will have the value "/contact?name=joe". So you can expect the PATH
-    and any PARAMETERS from the url, but nothing else.
-
-    This function is called each time another program/computer makes a request to this website.
-    The URL represents the requested file.
-
-    This function should return two strings in a list or tuple. The first is the content to return
-    The second is the content-type.
+    Handles routing and content for the site.
+    Returns (content, content_type).
     """
-    # step 1: process URL
 
-    #Get rid of any extra queries (stuff after "?") in the URL
-    query_pos = url.find("?") #Referenced https://www.w3schools.com/python/ref_string_find.asp
+    #step 1: isolate URL and parameters
+    query_pos = url.find("?")
     if query_pos != -1:
-        query = url[query_pos:]
         url = url[:query_pos]
+        order_filters = parse_query_parameters(url[query_pos:])
     else:
-        query = ""
-    #print(query)
-    #print(url)
+        order_filters = {}
 
-    # step 2: routing and returning of content.
+    #step 2: routing
+    match url:
+        
+        #about page
+        case "/" | "/about":
+            filename = "static/html/about.html"
+            content_type = "text/html"
+            try:
+                with open(filename, encoding="utf-8") as f:
+                    return f.read(), content_type
+            except FileNotFoundError:
+                return "<h1>About page not found</h1>", "text/html"
 
-    #TODO Fix the routing to account for new hw 2 stuff
+        #orders
+        case "/orders" | "/admin/orders":
+            return render_orders(order_filters) 
 
-    # / -- returns the "about" page for the company
-    # /about -- also returns the "about" page for the company
-    # /admin/orders -- returns a table of all orders
-    # /tracking/[anything] -- a page to show order status to the order-placer
-    # /images/main -- a special name for the front-page image of your website.
-    # /main.css -- the primary css file for your website. For now, please put all CSS in this file.
+        #angry stick man render
+        case "/images/anger.png":
+            try:
+                with open("static/images/anger.png", "rb") as f:
+                    return f.read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
 
-    #Returning the proper file
-    if url == "/" or url == "/about":
-         filename = "about.html"
-    elif url == "/orders" or url == "/admin/orders":
-        return render_orders()
-    else:
-        filename = "404.html"
-
-    #Attempt to open the file at filename
-    try:
-        with open(f"static/html/{filename}", encoding="utf-8") as f:
-            return f.read()
-    except:
-        return "<h1>Uh oh, this file doesn't exist extra special 404</h1>"
-
-    # An example that might help you start:
-    return open("static/html/404.html").read(), "text/html"
+        #404 page
+        case _:
+            filename = "static/html/404.html"
+            try:
+                with open(filename, encoding="utf-8") as f:
+                    return f.read(), "text/html"
+            except FileNotFoundError:
+                return "<h1>404 Not Found</h1>", "text/html"
 
 
 # You shouldn't need to change content below this. It would be best if you just left it alone.
