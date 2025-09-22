@@ -126,7 +126,7 @@ def render_tracking(order):
 def render_orders(order_filters: dict[str, str]):
     order_number = order_filters.get("order_number", "").strip()
     status = order_filters.get("status", "").strip()
-
+    #Referenced https://www.w3schools.com/html/html_forms.asp for the forms
     result = """
 <!DOCTYPE html>
 <html lang="en">
@@ -144,7 +144,7 @@ def render_orders(order_filters: dict[str, str]):
 
     <h3>Search Orders</h3>
     <form method="get" action="/orders">
-        <label for="order_number">Order #:</label>
+        <label for="order_number">Order #:</label> 
         <input type="text" id="order_number" name="order_number">
         <br><br>
         <label for="status">Status:</label>
@@ -183,7 +183,7 @@ def render_orders(order_filters: dict[str, str]):
                 result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
-
+    #no order number selected, but order status selected
     elif status:
         matched = False
         for order in orders:
@@ -192,9 +192,8 @@ def render_orders(order_filters: dict[str, str]):
                 matched = True
         if not matched:
             result += "<tr><td colspan='7'>No orders found with that status.</td></tr>"
-
+    #no filters applied (show all orders pretty much)
     else:
-        # Show all orders if no filters
         for order in orders:
             result += "<tr>" + format_one_order(order) + "</tr>"
 
