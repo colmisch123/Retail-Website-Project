@@ -124,25 +124,42 @@ def render_tracking(order):
 
 #this one is also messy but I think it will function
 def render_orders(order_filters: dict[str, str]):
+    order_number = order_filters.get("order_number", "").strip()
+    status = order_filters.get("status", "").strip()
+
     result = """
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>Orders</title>
-        <link rel="stylesheet" href="/main.css">
-        <meta charset="UTF-8">
-    </head>
+<head>
+    <title>Orders</title>
+    <link rel="stylesheet" href="css/main.css">
+    <meta charset="UTF-8">
+</head>
+<body>
+    <h2>Directory</h2>
+    <ul>
+        <li><a href="/about">Home page</a></li>
+        <li><a href="/orders">Orders</a></li>
+    </ul>
 
-    <body>
-        <h2>Directory</h2>
-        <ul>
-            <li><a href="/about">Home page</a></li>
-            <li><a href="/orders">Orders</a></li>
-        </ul>
+    <h3>Search Orders</h3>
+    <form method="get" action="/orders">
+        <label for="order_number">Order #:</label>
+        <input type="text" id="order_number" name="order_number">
+        <br><br>
+        <label for="status">Status:</label>
+        <select id="status" name="status">
+            <option value="">--Select--</option>
+            <option value="Completed">Completed</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Placed">Placed</option>
+        </select>
+        <button type="submit">Search</button>
+    </form>
 
-        <h3>Orders</h3>
-        <table>   
-            <tr>
+    <h3>Results</h3>
+    <table>
+        <tr>
             <th>#</th>
             <th>Status</th>
             <th>Cost</th>
@@ -150,17 +167,44 @@ def render_orders(order_filters: dict[str, str]):
             <th>Address</th>
             <th>Product</th>
             <th>Notes</th>
-        </tr>"""
-    for order in orders:
-        result += "<tr>"
-        result += format_one_order(order)
-        result += "</tr>"
+        </tr>
+"""
+
+    if order_number:
+        try:
+            order_number = int(order_number)
+            found = False
+            for order in orders:
+                if order["id"] == order_number:
+                    result += "<tr>" + format_one_order(order) + "</tr>"
+                    found = True
+                    break
+            if not found:
+                result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
+        except ValueError:
+            result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+
+    elif status:
+        matched = False
+        for order in orders:
+            if order["status"].lower() == status.lower():
+                result += "<tr>" + format_one_order(order) + "</tr>"
+                matched = True
+        if not matched:
+            result += "<tr><td colspan='7'>No orders found with that status.</td></tr>"
+
+    else:
+        # Show all orders if no filters
+        for order in orders:
+            result += "<tr>" + format_one_order(order) + "</tr>"
+
     result += """
-        </table>
-    </body>
+    </table>
+</body>
 </html>
 """
     return result
+
 
 
 # Provided function -- converts numbers like 42 or 7.347 to "$42.00" or "$7.35"
@@ -177,8 +221,9 @@ def server(url: str) -> tuple[str | bytes, str]:
     #step 1: isolate URL and parameters
     query_pos = url.find("?")
     if query_pos != -1:
-        url = url[:query_pos]
-        order_filters = parse_query_parameters(url[query_pos:])
+        query = url[query_pos:]         #split off query
+        order_filters = parse_query_parameters(query)
+        url = url[:query_pos]           #clean URL for routing
     else:
         order_filters = {}
 
@@ -188,22 +233,19 @@ def server(url: str) -> tuple[str | bytes, str]:
         #about page
         case "/" | "/about":
             filename = "static/html/about.html"
-            content_type = "text/html"
             try:
-                with open(filename, encoding="utf-8") as f:
-                    return f.read(), content_type
+                return open(filename, encoding="utf-8").read(), "text/html"
             except FileNotFoundError:
                 return "<h1>About page not found</h1>", "text/html"
 
         #orders
         case "/orders" | "/admin/orders":
-            return render_orders(order_filters) 
+            return render_orders(order_filters), "text/html"
 
         #angry stick man render
         case "/images/anger.png":
             try:
-                with open("static/images/anger.png", "rb") as f:
-                    return f.read(), "image/png"
+                return open("static/images/anger.png", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
@@ -211,8 +253,7 @@ def server(url: str) -> tuple[str | bytes, str]:
         case _:
             filename = "static/html/404.html"
             try:
-                with open(filename, encoding="utf-8") as f:
-                    return f.read(), "text/html"
+                return open(filename, encoding="utf-8").read(), "text/html"
             except FileNotFoundError:
                 return "<h1>404 Not Found</h1>", "text/html"
 
