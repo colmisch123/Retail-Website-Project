@@ -102,7 +102,7 @@ def render_tracking(order):
         <meta charset="UTF-8">
     </head>
 <body>
-    <table>
+    <table id="paleBlueRows">
         <tr>
             <th>#</th>
             <th>Status</th>
@@ -158,7 +158,7 @@ def render_orders(order_filters: dict[str, str]):
     </form>
 
     <h3>Results</h3>
-    <table>
+    <table id="paleBlueRows">
         <tr>
             <th>#</th>
             <th>Status</th>
