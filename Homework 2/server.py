@@ -132,7 +132,7 @@ def render_orders(order_filters: dict[str, str]):
 <html lang="en">
 <head>
     <title>Orders</title>
-    <link rel="stylesheet" type="text/css" href="../css/main.css">
+    <link rel="stylesheet" href="/static/css/main.css">
     <meta charset="UTF-8">
 </head>
 <body>
@@ -248,6 +248,13 @@ def server(url: str) -> tuple[str | bytes, str]:
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
+        case path if path.endswith(".css"):
+            filename = path.lstrip("/")   # remove leading "/"
+            try:
+                return open(filename, "rb").read(), "text/css"
+            except FileNotFoundError:
+                return "/* CSS not found */", "text/css"
+            
         #404 page
         case _:
             filename = "static/html/404.html"

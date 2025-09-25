@@ -1,31 +1,3 @@
-#paleBlueRows {
-  font-family: "Times New Roman", Times, serif;
-  border: 1px solid #FFFFFF;
-  width: 350px;
-  height: 200px;
-  text-align: center;
-}
-td, th{
-  border: 1px solid #FFFFFF;
-  padding: 10px 10px;
-}
-tbody td {
-  font-size: 13px;
-}
-tr:nth-child(even) {
-  background: #D0E4F5;
-}
-thead {
-  background: #098FA4;
-  border-bottom: 5px solid #FFFFFF;
-}
-thead th {
-  font-size: 17px;
-  font-weight: bold;
-  color: #FFFFFF;
-  text-align: center;
-  border-left: 0px solid #FFFFFF;
-}
-thead th:first-child {
-  border-left: none;
+table, th, td {
+  border: 1px solid black;
 }
