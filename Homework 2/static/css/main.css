@@ -38,7 +38,7 @@ ul.nav-bar li a {
   display: block;
   color: white;
   border-right: 1px solid;
-  border-color: #24301d;
+  border-color: #1d2717;
   padding: 14px 16px;
   text-decoration: none;
   margin: 0px;  
@@ -51,7 +51,7 @@ ul.nav-bar li a {
 }
 
 ul.nav-bar li a:hover {
-  background-color: #2a3622;
+  background-color: #26311f;
   transform: scale(1.15);  
   border-color: transparent; 
   transition: background-color 0.3s ease-in,
@@ -122,6 +122,59 @@ transition: background-color 0.3s ease-in,
 
 
 
+/*Form stuff for Orders page*/
+/*Referenced https://www.w3schools.com/css/css_form.asp*/
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; 
+    width: 300px; 
+    padding: 20px;
+    margin: 20px auto; 
+    border: 1px solid #ccc; 
+    border-radius: 5px;
+    background-color: #fafafa; 
+}
+
+/* 2. Style the Labels */
+label {
+    font-weight: bold;
+    color: #1c0038; 
+    margin-bottom: 5px;
+}
+
+/* 3. Style Text Input and Select Dropdown */
+input[type="text"],
+select {
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 16px;
+    width: 100%; 
+    box-sizing: border-box; 
+}
+
+button[type="submit"] {
+    width: 100%; 
+    margin-top: 10px; 
+    background-color: #71c48a;
+    color: white;
+    font-size: 16px; 
+    padding: 10px; 
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.5s ease;
+}
+
+/* Ensure your button:hover rule remains in main.css */
+button[type="submit"]:hover {
+    background-color: #18bd20;
+}
+
+
+
+
 /*Table stuff for Orders page*/
 table {
   border-collapse: collapse; 
@@ -154,6 +207,7 @@ tr:hover {
     background-color: #F9EAD7;
 }
 
-tr:first-child:hover {
+/* Referenced https://www.w3schools.com/cssref/sel_not.php */
+table:not(#single-order) > tr:first-child:hover {
     background-color: #2f3a26; 
 }

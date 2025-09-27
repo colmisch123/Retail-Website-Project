@@ -90,33 +90,69 @@ def parse_query_parameters(response):
         pairs[i[0]] = i[1]
     return pairs
 
-#this one is messy but it should work I think
 def render_tracking(order):
-    #note: referenced in class assignment 2 when setting this function up
-    result = """
+    # Keys will become the row headers (e.g., "ID", "Status", "Cost")
+    keys = list(order.keys()) 
+    order_id = str(order.get("id", "Error: order doesn't have ID"))
+    order_status = str(order.get("status", "Error: order doesn't have status")).lower()
+    # Start HTML, matching the structure of render_orders
+    result = f"""
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>Orders</title>
-        <link rel="stylesheet" href="../css/main.css">
+        <title>Order Tracking for #{order_id}</title>
+        <link rel="stylesheet" href="/static/css/main.css">
         <meta charset="UTF-8">
     </head>
 <body>
-    <table>
-        <tr>
-            <th>#</th>
-            <th>Status</th>
-            <th>Cost</th>
-            <th>From</th>
-            <th>Address</th>
-            <th>Product</th>
-            <th>Notes</th>
-        </tr>
-        <tr>"""
-    result += format_one_order(order)
+
+    <ul class="nav-bar">
+        <li><a href="/about" class="nav-button">Home page</a></li>
+        <li><a href="/orders" class="nav-button">Orders</a></li>
+    </ul>
+    
+    <div class="flex-container" id="title">
+        <h2">Tracking Order #{order_id}</h2>
+    </div>
+
+    <div class="flex-container" id="body-text" style="font-size: 30px">"""
+    match order_status:
+        case "completed":
+            result += "<p>Your order has been completed! Thank you for shopping with us and be sure to Stick it to the man!</p>"
+        case "out for delivery":
+            result += "<p>Your order is currently shipping</p>"
+        case "placed":
+            result += "<p>Your order has been placed and is processing</p>"
+    result += """</div>
+
+    <form method="get" action="/orders">
+
+        <label for="order_number">Order #:</label> 
+        <input type="text" id="order_number" name="order_number">
+
+        <br><br>
+
+        <label for="status">Status:</label>
+        <select id="status" name="status">
+            <option value="">Any</option>
+            <option value="Completed">Completed</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Placed">Placed</option>
+        </select>
+
+        <button type="submit">Search</button>
+    </form>
+    <table id="single-order">
+"""
+    for key in keys:
+        result += f"<tr><th>{key}</th>"
+        if key == "cost":
+            result += f"<td>{typeset_dollars(order[key])}</td></tr>"
+        else:
+            result += f"<td>{str(order[key])}</td></tr>"
     result += """
-        </tr>
     </table>
+
 </body>
 </html>
 """
@@ -138,23 +174,29 @@ def render_orders(order_filters: dict[str, str]):
 <body>
 
     <ul class="nav-bar">
-            <li><a href="/about">Home page</a></li>
-            <li><a href="/orders">Orders</a></li>
+        <li><a href="/about">Home page</a></li>
+        <li><a href="/orders">Orders</a></li>
     </ul>
+    
     <div class="flex-container" id="title">
-        <h1">Orders</h1>
+        <h2">Orders</h2>
     </div>
+
     <form method="get" action="/orders">
+
         <label for="order_number">Order #:</label> 
         <input type="text" id="order_number" name="order_number">
+
         <br><br>
+
         <label for="status">Status:</label>
         <select id="status" name="status">
-            <option value="">--Select--</option>
+            <option value="">Any</option>
             <option value="Completed">Completed</option>
             <option value="Out for Delivery">Out for Delivery</option>
             <option value="Placed">Placed</option>
         </select>
+
         <button type="submit">Search</button>
     </form>
 
@@ -169,18 +211,24 @@ def render_orders(order_filters: dict[str, str]):
             <th>Notes</th>
         </tr>
 """
-
     if order_number:
         try:
             order_number = int(order_number)
-            found = False
-            for order in orders:
-                if order["id"] == order_number:
-                    result += "<tr>" + format_one_order(order) + "</tr>"
-                    found = True
-                    break
-            if not found:
-                result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
+            if order_number < 0:
+                result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+            else:
+                found = False
+                for order in orders:
+                    if order["id"] == order_number:
+                        #I know this seems like a lot of if-branches, but it's like the optimal way to get the website to render things the way I want (being able to conditionally filter with two things at a time creates a number of branches)
+                        #This would scale *horribly* if I wanted more search parameters, but it works for now.
+                        if status: 
+                            if order["status"].lower() == status.lower():
+                                return render_tracking(order) #Render just one order if using order number
+                        else:
+                            return render_tracking(order) #Render just one order if using order number
+                if not found:
+                    result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
     
