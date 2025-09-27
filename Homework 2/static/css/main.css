@@ -1,3 +1,101 @@
-table, th, td {
-  border: 1px solid black;
+body {
+  background-color: #effae6;
+  margin:0;
+  padding-top:50px;
+}
+
+/* This is arguably pretty messy compared to using the universal selector, but the universal selector would screw up other stuff too much */
+
+h1, h2, h3, h4, h5, h6, p, table, img, form{
+  margin: 10px;
+}
+
+/* The navigation bar at the top */
+
+.flex-container#TopLinks {
+  position:fixed;
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+}
+
+ul.nav-bar {
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  list-style-type: none;
+  padding: 0;
+  background-color: #2f3a26;
+  display: flex;
+  width: 100%; 
+  margin: 0px;
+}
+
+ul.nav-bar li a {
+  display: block;
+  color: white;
+  border-right: 1px solid;
+  border-color: #24301d;
+  padding: 14px 16px;
+  text-decoration: none;
+  margin: 0px;
+  
+  /*This was kinda painful to figure out because the borders kept changing out of sync with the boxes and it looked ugly. Referenced https://www.w3schools.com/css/css3_transitions.asp and https://www.w3schools.com/cssref/css3_pr_transition-delay.php */
+  /*Honestly the animation still isn't perfect if you have a keen eye, but it's literally 5 AM and I should focus on other things at this point */
+  /*If I were to do it again, I wouldn't use border color, but instead maybe some empty, really thin box between each link. Borders were kind of an uneducated guess at doing it */
+  transition: background-color 0.3s ease-in,
+              transform 0.3s ease,
+              border-color 0.27s ease 0.05s; 
+}
+
+ul.nav-bar li a:hover {
+  background-color: #2a3622;
+  transform: scale(1.15);  
+  border-color: transparent; 
+  transition: background-color 0.3s ease-in,
+              transform 0.3s ease,
+              border-color 0s;
+}
+
+
+
+
+
+/*Table stuff for Orders page*/
+
+table {
+  border-collapse: collapse; 
+  width: 80%; 
+  margin: 20px auto; 
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 10px; 
+  text-align: left; 
+}
+
+th {
+  background-color: #2f3a26;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+tr:nth-child(odd) {
+    background-color: #e7f5e6; 
+}
+
+tr:nth-child(even) {
+    background-color: #fafafa; 
+}
+
+
+tr:hover {
+    background-color: #ddd; /* A subtle, darker color on hover */
+}
+
+/* Ensure the header row does NOT change color on hover */
+tr:first-child:hover {
+    background-color: #2f3a26; 
 }

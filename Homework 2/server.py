@@ -18,7 +18,7 @@ orders = [
         "from": "Radiohead",
         "address": "Thom Yorke\n456 Crescent Ave\nBrooklyn, NY 11215",
         "product": "Frowning Man",
-        "notes": "",
+        "notes": "None",
     },
     {
         "id": 2,
@@ -102,7 +102,7 @@ def render_tracking(order):
         <meta charset="UTF-8">
     </head>
 <body>
-    <table id="paleBlueRows">
+    <table>
         <tr>
             <th>#</th>
             <th>Status</th>
@@ -136,12 +136,11 @@ def render_orders(order_filters: dict[str, str]):
     <meta charset="UTF-8">
 </head>
 <body>
-    <h2>Directory</h2>
-    <ul>
-        <li><a href="/about">Home page</a></li>
-        <li><a href="/orders">Orders</a></li>
-    </ul>
 
+    <ul class="nav-bar">
+            <li><a href="/about">Home page</a></li>
+            <li><a href="/orders">Orders</a></li>
+    </ul>
     <h3>Search Orders</h3>
     <form method="get" action="/orders">
         <label for="order_number">Order #:</label> 
@@ -157,7 +156,6 @@ def render_orders(order_filters: dict[str, str]):
         <button type="submit">Search</button>
     </form>
 
-    <h3>Results</h3>
     <table>
         <tr>
             <th>#</th>
