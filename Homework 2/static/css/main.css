@@ -83,19 +83,17 @@ th {
 }
 
 tr:nth-child(odd) {
-    background-color: #e7f5e6; 
+    background-color: #e6e6e6; 
 }
 
 tr:nth-child(even) {
     background-color: #fafafa; 
 }
 
-
 tr:hover {
-    background-color: #ddd; /* A subtle, darker color on hover */
+    background-color: #F9EAD7;
 }
 
-/* Ensure the header row does NOT change color on hover */
 tr:first-child:hover {
     background-color: #2f3a26; 
 }
