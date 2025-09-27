@@ -141,7 +141,9 @@ def render_orders(order_filters: dict[str, str]):
             <li><a href="/about">Home page</a></li>
             <li><a href="/orders">Orders</a></li>
     </ul>
-    <h3>Search Orders</h3>
+    <div class="flex-container" id="title">
+        <h1">Orders</h1>
+    </div>
     <form method="get" action="/orders">
         <label for="order_number">Order #:</label> 
         <input type="text" id="order_number" name="order_number">
@@ -181,6 +183,7 @@ def render_orders(order_filters: dict[str, str]):
                 result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+    
     #no order number selected, but order status selected
     elif status:
         matched = False
@@ -190,6 +193,7 @@ def render_orders(order_filters: dict[str, str]):
                 matched = True
         if not matched:
             result += "<tr><td colspan='7'>No orders found with that status.</td></tr>"
+    
     #no filters applied (show all orders pretty much)
     else:
         for order in orders:
@@ -243,6 +247,20 @@ def server(url: str) -> tuple[str | bytes, str]:
         case "/images/anger.png":
             try:
                 return open("static/images/anger.png", "rb").read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
+        
+        #wobbly stick man render
+        case "/images/wobbly.png":
+            try:
+                return open("static/images/wobbly.png", "rb").read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
+            
+        #pleasantry stick man render
+        case "/images/pleasantry.png":
+            try:
+                return open("static/images/pleasantry.png", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
