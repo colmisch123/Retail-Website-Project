@@ -77,43 +77,43 @@ orders = [
     },
 ]
 
+
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
 def format_one_order(order):
     result = ""
+    is_first_item = True
     for item in order:
-        if item == "cost":
+        if is_first_item:
+            #wrap the Order ID (the first item) in a link to the tracking view.
+            order_id = order[item]
+            result += f"<td><a href='/orders?order_number={order_id}'>{order_id}</a></td>\n"
+            is_first_item = False
+        elif item == "cost":
             result += f"<td>{typeset_dollars(order[item])}</td>\n"
         else:
             result += f"<td>{order[item]}</td>\n"
     return result
 
-def escape_html(str):
-    str = str.replace("&", "&amp;")
-    str = str.replace('"', "&quot;")
+
+def escape_html(s):
+    # Only escape the characters that have special meaning in HTML.
+    s = s.replace("&", "&amp;")
+    s = s.replace('"', "&quot;")
 
     #Referenced https://www.freeformatter.com/html-entities.html for character codes
 
-    str = str.replace("<", "&lt")
-    str = str.replace(">", "&gt")
-    str = str.replace("#", "&#35")
-    str = str.replace("$", "&#36")
-    str = str.replace("%", "&#37")
-    str = str.replace("+", "&#43")
-    str = str.replace("-", "&#45")
-    str = str.replace("/", "&#47")
-    str = str.replace(":", "&#58")
-    str = str.replace(";", "&#59")
-    str = str.replace("=", "&#61")
-    str = str.replace("?", "&#63")
-    str = str.replace("@", "&#64")
+    s = s.replace("<", "&lt;")
+    s = s.replace(">", "&gt;")
+    
+    return s
 
-    return str
 
 def unescape_url(url_str):
     import urllib.parse
 
     # NOTE -- this is the only place urllib is allowed on this assignment.
     return urllib.parse.unquote_plus(url_str)
+
 
 def parse_query_parameters(response):
     response = response[1:] # get rid of '?'
@@ -131,6 +131,7 @@ def parse_query_parameters(response):
     for i in values:
         pairs[i[0]] = i[1]
     return pairs
+
 
 def render_tracking(order):
     # Keys will become the row headers (e.g., "ID", "Status", "Cost")
@@ -183,13 +184,22 @@ def render_tracking(order):
 """
     return result
 
-def render_orders(order_filters: dict[str, str]):
-    #using escape_html to avoid any funny business with HTML injections
-    #also doing strip() and lower() to make things easier
-    order_number = escape_html(order_filters.get("order_number", "").strip())
-    status = order_filters.get("status", "").strip()
-    sender = escape_html(order_filters.get("from", "").strip().lower())
 
+def render_orders(order_filters: dict[str, str]):
+    #raw values for logic/comparison
+    order_number_raw = order_filters.get("order_number", "").strip()
+    status_raw = order_filters.get("status", "").strip()
+    sender_raw = order_filters.get("from", "").strip()
+    
+    #variables for comparison logic (lowercase for filtering)
+    status = status_raw.lower()
+    sender_comparison = sender_raw.lower()
+    
+    #variables for safe HTML display since they're escaped
+    order_number_html = escape_html(order_number_raw)
+    sender_html = escape_html(sender_raw)
+    status_html = escape_html(status_raw)
+    
     result = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -213,21 +223,21 @@ def render_orders(order_filters: dict[str, str]):
 
         <div class="form-group">
             <label for="from">From: </label> 
-            <input type="text" id="from" name="from" placeholder="Note: Case-insensitive">
+            <input type="text" id="from" name="from" value="{sender_html}" placeholder="Note: Case-insensitive">
         </div>
 
         <div class="form-group">
             <label for="order_number">Order #:</label> 
-            <input type="text" id="order_number" name="order_number">
+            <input type="text" id="order_number" name="order_number" value="{order_number_html}">
         </div>
 
         <div class="form-group">
             <label for="status">Status:</label>
             <select id="status" name="status">
-                <option value="">Any</option>
-                <option value="Completed">Completed</option>
-                <option value="Out for Delivery">Out for Delivery</option>
-                <option value="Placed">Placed</option>
+                <option value="" {'selected' if not status_raw else ''}>Any</option>
+                <option value="Completed" {'selected' if status.lower() == 'completed' else ''}>Completed</option>
+                <option value="Out for Delivery" {'selected' if status.lower() == 'out for delivery' else ''}>Out for Delivery</option>
+                <option value="Placed" {'selected' if status.lower() == 'placed' else ''}>Placed</option>
             </select>
         </div>
 
@@ -236,12 +246,13 @@ def render_orders(order_filters: dict[str, str]):
 
     <div class="flex-container" id="shipping-status">"""
 
-    #Assemble the filter string (escaped safely)
+    #generate status message like "status of delivered"
     search_message = []
-    if status:
-        search_message.append(f"status of <strong>{status.lower()}</strong>")
-    if sender:
-        search_message.append(f"sender containing <strong>{sender}</strong>")
+    if status_raw:
+        search_message.append(f"status of <strong>{status_html.lower()}</strong>")
+    if sender_raw:
+        search_message.append(f"sender containing <strong>{sender_html}</strong>") 
+        
     if search_message:
         result += f"<p>Currently filtering orders by {' and '.join(search_message)}</p>"
     result += """
@@ -260,48 +271,47 @@ def render_orders(order_filters: dict[str, str]):
     
     filtered_orders = []
     
-    if order_number:
+    if order_number_raw:
         try:
-            order_number = int(order_number)
-            if order_number < 0:
+            order_number_int = int(order_number_raw) 
+            if order_number_int < 0:
                 result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
             else:
                 for order in orders:
-                    if order["id"] == order_number:
-                        #Applying other filters
-                        status_match = not status or (order["status"].lower() == status.lower())
-                        sender_match = not sender or (sender in order["from"].lower())
+                    if order["id"] == order_number_int:
+                        #applying other filters
+                        status_match = not status or (order["status"].lower() == status)
+                        sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
 
                         if status_match and sender_match:
-                            #Render single tracking page immediately if order ID matches all filters
+                            #render single tracking page immediately if order ID matches all filters
                             return render_tracking(order) 
                 result += "<tr><td colspan='7'>No order found with that ID matching all filters.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
 
-    #No order ID number was indexed for
     else:
         for order in orders:
-            #Apply filters
-            status_match = not status or (order["status"].lower() == status.lower())
-            sender_match = not sender or (sender in order["from"].lower())
+            #apply filters
+            status_match = not status or (order["status"].lower() == status)
+            sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
             
             if status_match and sender_match:
                 filtered_orders.append(order)
         
-        #Format everything that was filtered for
+        #format everything that was filtered for
         if filtered_orders:
             for order in filtered_orders:
                 result += "<tr>" + format_one_order(order) + "</tr>"
         else:
             result += "<tr><td colspan='7'>No orders found matching the selected filters.</td></tr>"
+            
     result += """
     </table>
 </body>
 </html>
 """
     return result
-
 
 
 # Provided function -- converts numbers like 42 or 7.347 to "$42.00" or "$7.35"
@@ -339,33 +349,33 @@ def server(url: str) -> tuple[str | bytes, str]:
         case "/orders" | "/admin/orders":
             return render_orders(order_filters), "text/html"
 
-        #images
-        case "/images/anger.png":
+        #image
+        case "/images/main.png" | "/images/main":
             try:
-                return open("static/images/anger.png", "rb").read(), "image/png"
+                return open("static/images/main.png", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
         # Staff pictures
-        case "/images/alicejohnson.jpg":
+        case "/images/alicejohnson.jpg" | "/images/alicejohnson":
             try:
                 return open("static/images/alicejohnson.jpg", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
-        case "/images/bobsmith.jpg":
+        case "/images/bobsmith.jpg" | "/images/bobsmith":
             try:
                 return open("static/images/bobsmith.jpg", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
-        case "/images/carollee.jpg":
+        case "/images/carollee.jpg" | "/images/carollee":
             try:
                 return open("static/images/carollee.jpg", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
-        case "/images/davidkim.jpg":
+        case "/images/davidkim.jpg" | "/images/davidkim":
             try:
                 return open("static/images/davidkim.jpg", "rb").read(), "image/png"
             except FileNotFoundError:
