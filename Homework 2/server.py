@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import re
 
 orders = [
+    #Note used ChatGPT to generate some of the orders here (which should be allowed by the syllabus)
     {
         "id": 0,
         "status": "Completed",
@@ -18,7 +19,7 @@ orders = [
         "from": "Radiohead",
         "address": "Thom Yorke<br>456 Crescent Ave<br>Brooklyn, NY 11215",
         "product": "Frowning Man",
-        "notes": "None",
+        "notes": "N/A",
     },
     {
         "id": 2,
@@ -29,6 +30,51 @@ orders = [
         "product": "Dancing man",
         "notes": "Wait he's alive?",
     },
+    {
+        "id": 3,
+        "status": "Completed",
+        "cost": 8.99,
+        "from": "Fleetwood Mac",
+        "address": "Stevie Nicks<br>1550 Golden Rd<br>Los Angeles, CA 90026",
+        "product": "2x Frowning Man",
+        "notes": "Fast shipping please",
+    },
+    {
+        "id": 4,
+        "status": "Placed",
+        "cost": 65.40,
+        "from": "Red Hot Chili Peppers",
+        "address": "Anthony Kiedis<br>900 Venice Blvd<br>Venice, CA 90291",
+        "product": "Wobbly Man",
+        "notes": "N/A",
+    },
+    {
+        "id": 5,
+        "status": "Out for delivery",
+        "cost": 12.35,
+        "from": "The Black Keys",
+        "address": "Dan Auerbach<br>4131 Rubber Factory Ln<br>Akron, OH 44304",
+        "product": "2x Wobbly Man<br>Frowning Man",
+        "notes": "Leave with neighbor if not home.",
+    },
+    {
+        "id": 6,
+        "status": "Completed",
+        "cost": 33.00,
+        "from": "The White Stripes",
+        "address": "Jack White<br>777 Cass Corridor St<br>Detroit, MI 48201",
+        "product": "Chilling Man",
+        "notes": "Birthday gift for sister.",
+    },
+    {
+        "id": 7,
+        "status": "Placed",
+        "cost": 14.55,
+        "from": "Tame Impala",
+        "address": "Kevin Parker<br>200 Lonerism Way<br>Perth, WA 6000, Australia",
+        "product": "Angry Man",
+        "notes": "N/A",
+    },
 ]
 
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
@@ -38,30 +84,28 @@ def format_one_order(order):
         if item == "cost":
             result += f"<td>{typeset_dollars(order[item])}</td>\n"
         else:
-            #TODO: Double check if I actually need escape_html() here
             result += f"<td>{order[item]}</td>\n"
     return result
 
-#I think this one is good?
 def escape_html(str):
     str = str.replace("&", "&amp;")
     str = str.replace('"', "&quot;")
 
     #Referenced https://www.freeformatter.com/html-entities.html for character codes
 
-    str = str.replace("<", "&lt;")
-    str = str.replace(">", "&gt;")
-    str = str.replace("#", "&#35;")
-    str = str.replace("$", "&#36;")
-    str = str.replace("%", "&#37;")
-    str = str.replace("+", "&#43;")
-    str = str.replace("-", "&#45;")
-    str = str.replace("/", "&#47;")
-    str = str.replace(":", "&#58;")
-    str = str.replace(";", "&#59;")
-    str = str.replace("=", "&#61;")
-    str = str.replace("?", "&#63;")
-    str = str.replace("@", "&#64;")
+    str = str.replace("<", "&lt")
+    str = str.replace(">", "&gt")
+    str = str.replace("#", "&#35")
+    str = str.replace("$", "&#36")
+    str = str.replace("%", "&#37")
+    str = str.replace("+", "&#43")
+    str = str.replace("-", "&#45")
+    str = str.replace("/", "&#47")
+    str = str.replace(":", "&#58")
+    str = str.replace(";", "&#59")
+    str = str.replace("=", "&#61")
+    str = str.replace("?", "&#63")
+    str = str.replace("@", "&#64")
 
     return str
 
@@ -169,23 +213,21 @@ def render_orders(order_filters: dict[str, str]):
 
         <div class="form-group">
             <label for="from">From: </label> 
-            <input type="text" id="from" name="from" 
-                   value="{sender}" placeholder="John Smith">
+            <input type="text" id="from" name="from" placeholder="Note: Case-insensitive">
         </div>
 
         <div class="form-group">
             <label for="order_number">Order #:</label> 
-            <input type="text" id="order_number" name="order_number"
-                   value="{order_number}">
+            <input type="text" id="order_number" name="order_number">
         </div>
 
         <div class="form-group">
             <label for="status">Status:</label>
             <select id="status" name="status">
-                <option value="" {"selected" if not status else ""}>Any</option>
-                <option value="Completed" {"selected" if status.lower()=="completed" else ""}>Completed</option>
-                <option value="Out for Delivery" {"selected" if status.lower()=="out for delivery" else ""}>Out for Delivery</option>
-                <option value="Placed" {"selected" if status.lower()=="placed" else ""}>Placed</option>
+                <option value="">Any</option>
+                <option value="Completed">Completed</option>
+                <option value="Out for Delivery">Out for Delivery</option>
+                <option value="Placed">Placed</option>
             </select>
         </div>
 
@@ -247,7 +289,7 @@ def render_orders(order_filters: dict[str, str]):
             if status_match and sender_match:
                 filtered_orders.append(order)
         
-        #Format everything captured nicely
+        #Format everything that was filtered for
         if filtered_orders:
             for order in filtered_orders:
                 result += "<tr>" + format_one_order(order) + "</tr>"
@@ -297,13 +339,39 @@ def server(url: str) -> tuple[str | bytes, str]:
         case "/orders" | "/admin/orders":
             return render_orders(order_filters), "text/html"
 
-        #angry stick man render
+        #images
         case "/images/anger.png":
             try:
                 return open("static/images/anger.png", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
+        # Staff pictures
+        case "/images/alicejohnson.jpg":
+            try:
+                return open("static/images/alicejohnson.jpg", "rb").read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
+
+        case "/images/bobsmith.jpg":
+            try:
+                return open("static/images/bobsmith.jpg", "rb").read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
+
+        case "/images/carollee.jpg":
+            try:
+                return open("static/images/carollee.jpg", "rb").read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
+
+        case "/images/davidkim.jpg":
+            try:
+                return open("static/images/davidkim.jpg", "rb").read(), "image/png"
+            except FileNotFoundError:
+                return "<h1>Image not found</h1>", "text/html"
+
+        #Other
         case path if path.endswith(".css"):
             filename = path.lstrip("/")   # remove leading "/"
             try:
