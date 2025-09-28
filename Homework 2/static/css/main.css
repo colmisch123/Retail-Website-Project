@@ -63,6 +63,7 @@ ul.nav-bar li a:hover {
 
 
 /*Title*/
+
 /*Maybe make this prettier? It serves its purpose well enough idk*/
 .flex-container#title{
   display:flex;
@@ -126,9 +127,10 @@ transition: background-color 0.3s ease-in,
 /*Referenced https://www.w3schools.com/css/css_form.asp*/
 form {
     display: flex;
-    flex-direction: column;
-    gap: 10px; 
-    width: 300px; 
+    flex-direction: row; 
+    gap: 20px; 
+    align-items: center; 
+    width: fit-content; 
     padding: 20px;
     margin: 20px auto; 
     border: 1px solid #ccc; 
@@ -136,27 +138,24 @@ form {
     background-color: #fafafa; 
 }
 
-/* 2. Style the Labels */
 label {
     font-weight: bold;
+    font-size: 20px;
     color: #1c0038; 
-    margin-bottom: 5px;
 }
 
-/* 3. Style Text Input and Select Dropdown */
-input[type="text"],
-select {
+input[type="text"], select {
     padding: 8px 10px;
     border: 1px solid #ccc;
     border-radius: 3px;
     font-size: 16px;
-    width: 100%; 
-    box-sizing: border-box; 
+    height: 40px;
+    box-sizing: border-box;
+    width: 120px;
 }
 
 button[type="submit"] {
-    width: 100%; 
-    margin-top: 10px; 
+    height: 40px; 
     background-color: #71c48a;
     color: white;
     font-size: 16px; 
@@ -165,11 +164,6 @@ button[type="submit"] {
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.5s ease;
-}
-
-/* Ensure your button:hover rule remains in main.css */
-button[type="submit"]:hover {
-    background-color: #18bd20;
 }
 
 

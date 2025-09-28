@@ -125,23 +125,24 @@ def render_tracking(order):
             result += "<p>Your order has been placed and is processing</p>"
     result += """</div>
 
-    <form method="get" action="/orders">
+    <div class="flex-container">
+        <form method="get" action="/orders">
 
-        <label for="order_number">Order #:</label> 
-        <input type="text" id="order_number" name="order_number">
+            <label for="order_number">Order #:</label> 
+            <input type="text" id="order_number" name="order_number">
 
-        <br><br>
+            <label for="status">Status:</label>
+            <select id="status" name="status">
+                <option value="">Any</option>
+                <option value="Completed">Completed</option>
+                <option value="Out for Delivery">Out for Delivery</option>
+                <option value="Placed">Placed</option>
+            </select>
 
-        <label for="status">Status:</label>
-        <select id="status" name="status">
-            <option value="">Any</option>
-            <option value="Completed">Completed</option>
-            <option value="Out for Delivery">Out for Delivery</option>
-            <option value="Placed">Placed</option>
-        </select>
+            <button type="submit">Search</button>
+        </form>
+    </div>
 
-        <button type="submit">Search</button>
-    </form>
     <table id="single-order">
 """
     for key in keys:
@@ -182,23 +183,23 @@ def render_orders(order_filters: dict[str, str]):
         <h2">Orders</h2>
     </div>
 
-    <form method="get" action="/orders">
+    <div class="flex-container">
+        <form method="get" action="/orders">
 
-        <label for="order_number">Order #:</label> 
-        <input type="text" id="order_number" name="order_number">
+            <label for="order_number">Order #:</label> 
+            <input type="text" id="order_number" name="order_number">
 
-        <br><br>
+            <label for="status">Status:</label>
+            <select id="status" name="status">
+                <option value="">Any</option>
+                <option value="Completed">Completed</option>
+                <option value="Out for Delivery">Out for Delivery</option>
+                <option value="Placed">Placed</option>
+            </select>
 
-        <label for="status">Status:</label>
-        <select id="status" name="status">
-            <option value="">Any</option>
-            <option value="Completed">Completed</option>
-            <option value="Out for Delivery">Out for Delivery</option>
-            <option value="Placed">Placed</option>
-        </select>
-
-        <button type="submit">Search</button>
-    </form>
+            <button type="submit">Search</button>
+        </form>
+    </div>
 
     <table>
         <tr>
@@ -217,7 +218,6 @@ def render_orders(order_filters: dict[str, str]):
             if order_number < 0:
                 result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
             else:
-                found = False
                 for order in orders:
                     if order["id"] == order_number:
                         #I know this seems like a lot of if-branches, but it's like the optimal way to get the website to render things the way I want (being able to conditionally filter with two things at a time creates a number of branches)
@@ -227,8 +227,7 @@ def render_orders(order_filters: dict[str, str]):
                                 return render_tracking(order) #Render just one order if using order number
                         else:
                             return render_tracking(order) #Render just one order if using order number
-                if not found:
-                    result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
+                result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
     
