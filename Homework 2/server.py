@@ -7,7 +7,7 @@ orders = [
         "status": "Completed",
         "cost": 19.79,
         "from": "The Smashing Pumpkins",
-        "address": "Billy Corgan\n123 Easy Street\nSaint Paul, MN 55123",
+        "address": "Billy Corgan<br>123 Easy Street<br>Saint Paul, MN 55123",
         "product": "Bushy Brow Man",
         "notes": "Gift wrapped",
     },
@@ -16,7 +16,7 @@ orders = [
         "status": "Out for delivery",
         "cost": 42.50,
         "from": "Radiohead",
-        "address": "Thom Yorke\n456 Crescent Ave\nBrooklyn, NY 11215",
+        "address": "Thom Yorke<br>456 Crescent Ave<br>Brooklyn, NY 11215",
         "product": "Frowning Man",
         "notes": "None",
     },
@@ -25,7 +25,7 @@ orders = [
         "status": "Placed",
         "cost": 27.95,
         "from": "Nirvana",
-        "address": "Kurt Cobain\n789 River Rd\nSeattle, WA 98109",
+        "address": "Kurt Cobain<br>789 River Rd<br>Seattle, WA 98109",
         "product": "Dancing man",
         "notes": "Wait he's alive?",
     },
@@ -65,14 +65,12 @@ def escape_html(str):
 
     return str
 
-#This one doesn't need any edits
 def unescape_url(url_str):
     import urllib.parse
 
     # NOTE -- this is the only place urllib is allowed on this assignment.
     return urllib.parse.unquote_plus(url_str)
 
-# This one 100% works (at least testing at https://www.online-python.com/)
 def parse_query_parameters(response):
     response = response[1:] # get rid of '?'
     values = response.split("&")
@@ -95,6 +93,7 @@ def render_tracking(order):
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
     order_status = str(order.get("status", "Error: order doesn't have status")).lower()
+    
     # Start HTML, matching the structure of render_orders
     result = f"""
 <!DOCTYPE html>
@@ -112,10 +111,10 @@ def render_tracking(order):
     </ul>
     
     <div class="flex-container" id="title">
-        <h2">Tracking Order #{order_id}</h2>
+        <h2>Tracking Order #{order_id}</h2>
     </div>
 
-    <div class="flex-container" id="body-text" style="font-size: 30px">"""
+    <div class="flex-container" id="shipping-status">"""
     match order_status:
         case "completed":
             result += "<p>Your order has been completed! Thank you for shopping with us and be sure to Stick it to the man!</p>"
@@ -124,25 +123,7 @@ def render_tracking(order):
         case "placed":
             result += "<p>Your order has been placed and is processing</p>"
     result += """</div>
-
-    <div class="flex-container">
-        <form method="get" action="/orders">
-
-            <label for="order_number">Order #:</label> 
-            <input type="text" id="order_number" name="order_number">
-
-            <label for="status">Status:</label>
-            <select id="status" name="status">
-                <option value="">Any</option>
-                <option value="Completed">Completed</option>
-                <option value="Out for Delivery">Out for Delivery</option>
-                <option value="Placed">Placed</option>
-            </select>
-
-            <button type="submit">Search</button>
-        </form>
-    </div>
-
+    
     <table id="single-order">
 """
     for key in keys:
@@ -153,18 +134,19 @@ def render_tracking(order):
             result += f"<td>{str(order[key])}</td></tr>"
     result += """
     </table>
-
 </body>
 </html>
 """
     return result
 
-#this one is also messy but I think it will function
 def render_orders(order_filters: dict[str, str]):
-    order_number = order_filters.get("order_number", "").strip()
+    #using escape_html to avoid any funny business with HTML injections
+    #also doing strip() and lower() to make things easier
+    order_number = escape_html(order_filters.get("order_number", "").strip())
     status = order_filters.get("status", "").strip()
-    #Referenced https://www.w3schools.com/html/html_forms.asp for the forms
-    result = """
+    sender = escape_html(order_filters.get("from", "").strip().lower())
+
+    result = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -175,32 +157,53 @@ def render_orders(order_filters: dict[str, str]):
 <body>
 
     <ul class="nav-bar">
-        <li><a href="/about">Home page</a></li>
-        <li><a href="/orders">Orders</a></li>
+        <li><a href="/about" class="nav-button">Home page</a></li>
+        <li><a href="/orders" class="nav-button">Orders</a></li>
     </ul>
     
     <div class="flex-container" id="title">
-        <h2">Orders</h2>
+        <h2>Orders</h2>
     </div>
 
-    <div class="flex-container">
-        <form method="get" action="/orders">
+    <form method="get" action="/orders">
 
+        <div class="form-group">
+            <label for="from">From: </label> 
+            <input type="text" id="from" name="from" 
+                   value="{sender}" placeholder="John Smith">
+        </div>
+
+        <div class="form-group">
             <label for="order_number">Order #:</label> 
-            <input type="text" id="order_number" name="order_number">
+            <input type="text" id="order_number" name="order_number"
+                   value="{order_number}">
+        </div>
 
+        <div class="form-group">
             <label for="status">Status:</label>
             <select id="status" name="status">
-                <option value="">Any</option>
-                <option value="Completed">Completed</option>
-                <option value="Out for Delivery">Out for Delivery</option>
-                <option value="Placed">Placed</option>
+                <option value="" {"selected" if not status else ""}>Any</option>
+                <option value="Completed" {"selected" if status.lower()=="completed" else ""}>Completed</option>
+                <option value="Out for Delivery" {"selected" if status.lower()=="out for delivery" else ""}>Out for Delivery</option>
+                <option value="Placed" {"selected" if status.lower()=="placed" else ""}>Placed</option>
             </select>
+        </div>
 
-            <button type="submit">Search</button>
-        </form>
+        <button type="submit" class="search-button">Search</button>
+    </form>
+
+    <div class="flex-container" id="shipping-status">"""
+
+    #Assemble the filter string (escaped safely)
+    search_message = []
+    if status:
+        search_message.append(f"status of <strong>{status.lower()}</strong>")
+    if sender:
+        search_message.append(f"sender containing <strong>{sender}</strong>")
+    if search_message:
+        result += f"<p>Currently filtering orders by {' and '.join(search_message)}</p>"
+    result += """
     </div>
-
     <table>
         <tr>
             <th>#</th>
@@ -212,6 +215,9 @@ def render_orders(order_filters: dict[str, str]):
             <th>Notes</th>
         </tr>
 """
+    
+    filtered_orders = []
+    
     if order_number:
         try:
             order_number = int(order_number)
@@ -220,32 +226,33 @@ def render_orders(order_filters: dict[str, str]):
             else:
                 for order in orders:
                     if order["id"] == order_number:
-                        #I know this seems like a lot of if-branches, but it's like the optimal way to get the website to render things the way I want (being able to conditionally filter with two things at a time creates a number of branches)
-                        #This would scale *horribly* if I wanted more search parameters, but it works for now.
-                        if status: 
-                            if order["status"].lower() == status.lower():
-                                return render_tracking(order) #Render just one order if using order number
-                        else:
-                            return render_tracking(order) #Render just one order if using order number
-                result += "<tr><td colspan='7'>No order found with that ID.</td></tr>"
+                        #Applying other filters
+                        status_match = not status or (order["status"].lower() == status.lower())
+                        sender_match = not sender or (sender in order["from"].lower())
+
+                        if status_match and sender_match:
+                            #Render single tracking page immediately if order ID matches all filters
+                            return render_tracking(order) 
+                result += "<tr><td colspan='7'>No order found with that ID matching all filters.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
-    
-    #no order number selected, but order status selected
-    elif status:
-        matched = False
-        for order in orders:
-            if order["status"].lower() == status.lower():
-                result += "<tr>" + format_one_order(order) + "</tr>"
-                matched = True
-        if not matched:
-            result += "<tr><td colspan='7'>No orders found with that status.</td></tr>"
-    
-    #no filters applied (show all orders pretty much)
+
+    #No order ID number was indexed for
     else:
         for order in orders:
-            result += "<tr>" + format_one_order(order) + "</tr>"
-
+            #Apply filters
+            status_match = not status or (order["status"].lower() == status.lower())
+            sender_match = not sender or (sender in order["from"].lower())
+            
+            if status_match and sender_match:
+                filtered_orders.append(order)
+        
+        #Format everything captured nicely
+        if filtered_orders:
+            for order in filtered_orders:
+                result += "<tr>" + format_one_order(order) + "</tr>"
+        else:
+            result += "<tr><td colspan='7'>No orders found matching the selected filters.</td></tr>"
     result += """
     </table>
 </body>
@@ -294,20 +301,6 @@ def server(url: str) -> tuple[str | bytes, str]:
         case "/images/anger.png":
             try:
                 return open("static/images/anger.png", "rb").read(), "image/png"
-            except FileNotFoundError:
-                return "<h1>Image not found</h1>", "text/html"
-        
-        #wobbly stick man render
-        case "/images/wobbly.png":
-            try:
-                return open("static/images/wobbly.png", "rb").read(), "image/png"
-            except FileNotFoundError:
-                return "<h1>Image not found</h1>", "text/html"
-            
-        #pleasantry stick man render
-        case "/images/pleasantry.png":
-            try:
-                return open("static/images/pleasantry.png", "rb").read(), "image/png"
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
