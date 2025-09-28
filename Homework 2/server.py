@@ -82,16 +82,16 @@ orders = [
 def format_one_order(order):
     result = ""
     is_first_item = True
-    for item in order:
+    for item_key in order:
+        item_value = str(order[item_key])
         if is_first_item:
-            #wrap the Order ID (the first item) in a link to the tracking view.
-            order_id = order[item]
-            result += f"<td><a href='/orders?order_number={order_id}'>{order_id}</a></td>\n"
+            #ID is an integer, so it doesn't need escaping.
+            result += f"<td><a href='/orders?order_number={item_value}'>{item_value}</a></td>\n"
             is_first_item = False
-        elif item == "cost":
-            result += f"<td>{typeset_dollars(order[item])}</td>\n"
+        elif item_key == "cost":
+            result += f"<td>{typeset_dollars(order[item_key])}</td>\n"
         else:
-            result += f"<td>{order[item]}</td>\n"
+            result += f"<td>{escape_html(item_value)}</td>\n"
     return result
 
 
@@ -115,21 +115,35 @@ def unescape_url(url_str):
     return urllib.parse.unquote_plus(url_str)
 
 
-def parse_query_parameters(response):
-    response = response[1:] # get rid of '?'
-    values = response.split("&")
-    
-    #this loop turns "?color=%237766a9&mood=hate+it+it&name=buloova" into [['color', '#7766a9'], ['mood', 'hate it it'], ['name', 'buloova']]
-    for i in range(len(values)):
-        values[i] = values[i].split("=")
-        for j in range(len(values[i])):
-            values[i][j] = unescape_url(values[i][j])
+def parse_query_parameters(query_string):
+    """
+    Parses a URL query string into a dictionary, safely handling
+    empty values and keys without values.
+    """
+    if not query_string.startswith('?'):
+        return {}
 
-    #Looping through the split up string to turn it into a dictionary
+    query_string = query_string[1:] #get rid of '?'
+    if not query_string:
+        return {} #return empty for empty query
+
     pairs = {}
-    i = 0
-    for i in values:
-        pairs[i[0]] = i[1]
+    for part in query_string.split('&'):
+        if not part:
+            continue
+        
+        #split only on the first equals sign
+        key_value = part.split('=', 1)
+        key = unescape_url(key_value[0])
+        
+        #check if a value exists after the split
+        if len(key_value) > 1:
+            value = unescape_url(key_value[1])
+        else:
+            value = "" 
+            
+        pairs[key] = value
+        
     return pairs
 
 
@@ -176,7 +190,7 @@ def render_tracking(order):
         if key == "cost":
             result += f"<td>{typeset_dollars(order[key])}</td></tr>"
         else:
-            result += f"<td>{str(order[key])}</td></tr>"
+            result += f"<td>{escape_html(value)}</td></tr>"
     result += """
     </table>
 </body>
@@ -190,16 +204,16 @@ def render_orders(order_filters: dict[str, str]):
     order_number_raw = order_filters.get("order_number", "").strip()
     status_raw = order_filters.get("status", "").strip()
     sender_raw = order_filters.get("from", "").strip()
-    
+
     #variables for comparison logic (lowercase for filtering)
     status = status_raw.lower()
     sender_comparison = sender_raw.lower()
-    
+
     #variables for safe HTML display since they're escaped
     order_number_html = escape_html(order_number_raw)
     sender_html = escape_html(sender_raw)
     status_html = escape_html(status_raw)
-    
+
     result = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -214,7 +228,7 @@ def render_orders(order_filters: dict[str, str]):
         <li><a href="/about" class="nav-button">Home page</a></li>
         <li><a href="/orders" class="nav-button">Orders</a></li>
     </ul>
-    
+
     <div class="flex-container" id="title">
         <h2>Orders</h2>
     </div>
@@ -235,9 +249,9 @@ def render_orders(order_filters: dict[str, str]):
             <label for="status">Status:</label>
             <select id="status" name="status">
                 <option value="" {'selected' if not status_raw else ''}>Any</option>
-                <option value="Completed" {'selected' if status.lower() == 'completed' else ''}>Completed</option>
-                <option value="Out for Delivery" {'selected' if status.lower() == 'out for delivery' else ''}>Out for Delivery</option>
-                <option value="Placed" {'selected' if status.lower() == 'placed' else ''}>Placed</option>
+                <option value="Completed" {'selected' if status == 'completed' else ''}>Completed</option>
+                <option value="Out for Delivery" {'selected' if status == 'out for delivery' else ''}>Out for Delivery</option>
+                <option value="Placed" {'selected' if status == 'placed' else ''}>Placed</option>
             </select>
         </div>
 
@@ -252,7 +266,7 @@ def render_orders(order_filters: dict[str, str]):
         search_message.append(f"status of <strong>{status_html.lower()}</strong>")
     if sender_raw:
         search_message.append(f"sender containing <strong>{sender_html}</strong>") 
-        
+
     if search_message:
         result += f"<p>Currently filtering orders by {' and '.join(search_message)}</p>"
     result += """
@@ -268,9 +282,9 @@ def render_orders(order_filters: dict[str, str]):
             <th>Notes</th>
         </tr>
 """
-    
+
     filtered_orders = []
-    
+
     if order_number_raw:
         try:
             order_number_int = int(order_number_raw) 
@@ -295,17 +309,17 @@ def render_orders(order_filters: dict[str, str]):
             #apply filters
             status_match = not status or (order["status"].lower() == status)
             sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
-            
+
             if status_match and sender_match:
                 filtered_orders.append(order)
-        
+
         #format everything that was filtered for
         if filtered_orders:
             for order in filtered_orders:
                 result += "<tr>" + format_one_order(order) + "</tr>"
         else:
             result += "<tr><td colspan='7'>No orders found matching the selected filters.</td></tr>"
-            
+
     result += """
     </table>
 </body>
@@ -328,9 +342,9 @@ def server(url: str) -> tuple[str | bytes, str]:
     #step 1: isolate URL and parameters
     query_pos = url.find("?")
     if query_pos != -1:
-        query = url[query_pos:]         #split off query
+        query = url[query_pos:]
         order_filters = parse_query_parameters(query)
-        url = url[:query_pos]           #clean URL for routing
+        url = url[:query_pos]
     else:
         order_filters = {}
 
