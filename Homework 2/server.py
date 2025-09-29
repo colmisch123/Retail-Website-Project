@@ -54,7 +54,7 @@ orders = [
         "cost": 12.35,
         "from": "The Black Keys",
         "address": "Dan Auerbach<br>4131 Rubber Factory Ln<br>Akron, OH 44304",
-        "product": "2x Wobbly Man<br>Frowning Man",
+        "product": "2x Wobbly Man, Frowning Man",
         "notes": "Leave with neighbor if not home.",
     },
     {
@@ -85,12 +85,17 @@ def format_one_order(order):
     for item_key in order:
         item_value = str(order[item_key])
         if is_first_item:
-            #ID is an integer, so it doesn't need escaping.
+            #order id is an integer, so it's safe and doesn't need escaping.
             result += f"<td><a href='/orders?order_number={item_value}'>{item_value}</a></td>\n"
             is_first_item = False
         elif item_key == "cost":
+            # typeset_dollars for cost items to display properly
             result += f"<td>{typeset_dollars(order[item_key])}</td>\n"
+        elif item_key == "address":
+            #special treatment for addresses to allow for breaklines (otherwise the string prints out with what is supposed to be HTML code)
+            result += f"<td>{item_value}</td>\n"
         else:
+            # For all other fields, escape them for security.
             result += f"<td>{escape_html(item_value)}</td>\n"
     return result
 
@@ -203,17 +208,17 @@ def render_orders(order_filters: dict[str, str]):
     #raw values for logic/comparison
     order_number_raw = order_filters.get("order_number", "").strip()
     status_raw = order_filters.get("status", "").strip()
-    sender_raw = order_filters.get("from", "").strip()
-
+    sender_raw = order_filters.get("query", "").strip() 
+    
     #variables for comparison logic (lowercase for filtering)
     status = status_raw.lower()
     sender_comparison = sender_raw.lower()
-
+    
     #variables for safe HTML display since they're escaped
     order_number_html = escape_html(order_number_raw)
     sender_html = escape_html(sender_raw)
     status_html = escape_html(status_raw)
-
+    
     result = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -228,7 +233,7 @@ def render_orders(order_filters: dict[str, str]):
         <li><a href="/about" class="nav-button">Home page</a></li>
         <li><a href="/orders" class="nav-button">Orders</a></li>
     </ul>
-
+    
     <div class="flex-container" id="title">
         <h2>Orders</h2>
     </div>
@@ -236,8 +241,8 @@ def render_orders(order_filters: dict[str, str]):
     <form method="get" action="/orders">
 
         <div class="form-group">
-            <label for="from">From: </label> 
-            <input type="text" id="from" name="from" value="{sender_html}" placeholder="Note: Case-insensitive">
+            <label for="query">Search From: </label> 
+            <input type="text" id="query" name="query" value="{sender_html}" placeholder="Note: Case-insensitive">
         </div>
 
         <div class="form-group">
@@ -266,7 +271,7 @@ def render_orders(order_filters: dict[str, str]):
         search_message.append(f"status of <strong>{status_html.lower()}</strong>")
     if sender_raw:
         search_message.append(f"sender containing <strong>{sender_html}</strong>") 
-
+        
     if search_message:
         result += f"<p>Currently filtering orders by {' and '.join(search_message)}</p>"
     result += """
@@ -282,9 +287,9 @@ def render_orders(order_filters: dict[str, str]):
             <th>Notes</th>
         </tr>
 """
-
+    
     filtered_orders = []
-
+    
     if order_number_raw:
         try:
             order_number_int = int(order_number_raw) 
@@ -293,12 +298,10 @@ def render_orders(order_filters: dict[str, str]):
             else:
                 for order in orders:
                     if order["id"] == order_number_int:
-                        #applying other filters
                         status_match = not status or (order["status"].lower() == status)
                         sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
 
                         if status_match and sender_match:
-                            #render single tracking page immediately if order ID matches all filters
                             return render_tracking(order) 
                 result += "<tr><td colspan='7'>No order found with that ID matching all filters.</td></tr>"
         except ValueError:
@@ -306,20 +309,18 @@ def render_orders(order_filters: dict[str, str]):
 
     else:
         for order in orders:
-            #apply filters
             status_match = not status or (order["status"].lower() == status)
             sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
-
+            
             if status_match and sender_match:
                 filtered_orders.append(order)
-
-        #format everything that was filtered for
+        
         if filtered_orders:
             for order in filtered_orders:
                 result += "<tr>" + format_one_order(order) + "</tr>"
         else:
             result += "<tr><td colspan='7'>No orders found matching the selected filters.</td></tr>"
-
+            
     result += """
     </table>
 </body>
