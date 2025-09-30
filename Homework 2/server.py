@@ -3,6 +3,7 @@ import re
 
 orders = [
     #Note used ChatGPT to generate some of the orders here (which should be allowed by the syllabus)
+    #For the prompt, I created the first order by hand and asked "This is a dictionary to represent a fictional order for a website I'm building, can you give me more like this?"
     {
         "id": 0,
         "status": "Completed",
@@ -153,12 +154,11 @@ def parse_query_parameters(query_string):
 
 
 def render_tracking(order):
-    # Keys will become the row headers (e.g., "ID", "Status", "Cost")
+    #keys will become the row headers
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
     order_status = str(order.get("status", "Error: order doesn't have status")).lower()
     
-    # Start HTML, matching the structure of render_orders
     result = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -192,10 +192,16 @@ def render_tracking(order):
 """
     for key in keys:
         result += f"<tr><th>{key}</th>"
-        if key == "cost":
-            result += f"<td>{typeset_dollars(order[key])}</td></tr>"
+        if isinstance(order[key], str):
+            if key == "cost":
+                result += f"<td>{typeset_dollars(order[key])}</td></tr>"
+            else:
+                non_br_str = f"<td>{escape_html(order[key])}</td></tr>"
+                #allowing for <br> statements to exist for proper address formatting
+                non_br_str = non_br_str.replace("&lt;br&gt;", "<br>")
+                result += non_br_str
         else:
-            result += f"<td>{escape_html(value)}</td></tr>"
+            result += f"<td>{(order[key])}</td></tr>"
     result += """
     </table>
 </body>
@@ -371,7 +377,7 @@ def server(url: str) -> tuple[str | bytes, str]:
             except FileNotFoundError:
                 return "<h1>Image not found</h1>", "text/html"
 
-        # Staff pictures
+        #staff pictures (if I were to be adding any more pictures I should probably make a different way to index them because this is stupid and unscalable)
         case "/images/alicejohnson.jpg" | "/images/alicejohnson":
             try:
                 return open("static/images/alicejohnson.jpg", "rb").read(), "image/png"
