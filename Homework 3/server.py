@@ -81,48 +81,265 @@ orders = [
 
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
 
+#untouched from project 2
+def format_one_order(order):
+    result = ""
+    is_first_item = True
+    for item_key in order:
+        item_value = str(order[item_key])
+        if is_first_item:
+            #order id is an integer, so it's safe and doesn't need escaping.
+            result += f"<td><a href='/orders?order_number={item_value}'>{item_value}</a></td>\n"
+            is_first_item = False
+        elif item_key == "cost":
+            # typeset_dollars for cost items to display properly
+            result += f"<td>{typeset_dollars(order[item_key])}</td>\n"
+        elif item_key == "address":
+            #special treatment for addresses to allow for breaklines (otherwise the string prints out with what is supposed to be HTML code)
+            result += f"<td>{item_value}</td>\n"
+        else:
+            # For all other fields, escape them for security.
+            result += f"<td>{escape_html(item_value)}</td>\n"
+    return result
 
-def escape_html(str):
-    str = str.replace("&", "&amp;")
-    str = str.replace('"', "&quot;")
+#untouched from project 2
+def escape_html(s):
+    # Only escape the characters that have special meaning in HTML.
+    s = s.replace("&", "&amp;")
+    s = s.replace('"', "&quot;")
 
-    # you need more.
+    #Referenced https://www.freeformatter.com/html-entities.html for character codes
 
-    return str
+    s = s.replace("<", "&lt;")
+    s = s.replace(">", "&gt;")
+    
+    return s
 
-
+#untouched from project 2
 def unescape_url(url_str):
     import urllib.parse
 
     # NOTE -- this is the only place urllib is allowed on this assignment.
     return urllib.parse.unquote_plus(url_str)
 
-
+#untouched from project 2
 def parse_query_parameters(response):
-    # Split the query string into key-value pairs
+    if not response.startswith('?'):
+        return {}
 
-    # Initialize a dictionary to store parsed parameters
+    response = response[1:] #get rid of '?'
+    if not response:
+        return {} #return empty for empty query
 
-    # Iterate over each key-value pair
-    # Split the pair by '=' to separate key and value
+    pairs = {}
+    for part in response.split('&'):
+        if not part:
+            continue
+        
+        #split only on the first equals sign
+        key_value = part.split('=', 1)
+        key = unescape_url(key_value[0])
+        
+        #check if a value exists after the split
+        if len(key_value) > 1:
+            value = unescape_url(key_value[1])
+        else:
+            value = "" 
+            
+        pairs[key] = value
+        
+    return pairs
 
-    return {}
 
-
+#TODO: Add the separate box to show the time remaining on the order.
 def render_tracking(order):
-    # render a single tracking page.
-    pass
+    #keys will become the row headers
+    keys = list(order.keys()) 
+    order_id = str(order.get("id", "Error: order doesn't have ID"))
+    order_status = str(order.get("status", "Error: order doesn't have status")).lower()
+    
+    result = f"""
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Order Tracking for #{order_id}</title>
+        <link rel="stylesheet" href="/static/css/main.css">
+        <meta charset="UTF-8">
+    </head>
+<body>
 
+    <ul class="nav-bar">
+            <li><a href="/about" class="nav-button">Home page</a></li>
+            <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
+            <li><a href="/order" class="nav-button">Place Order</a></li>
+    </ul>
+    
+    <div class="flex-container" id="title">
+        <h2>Tracking Order #{order_id}</h2>
+    </div>
 
+    <div class="flex-container" id="shipping-status">"""
+    match order_status:
+        case "completed":
+            result += "<p>Your order has been completed! Thank you for shopping with us and be sure to Stick it to the man!</p>"
+        case "out for delivery":
+            result += "<p>Your order is currently shipping</p>"
+        case "placed":
+            result += "<p>Your order has been placed and is processing</p>"
+    result += """</div>
+    
+    <table id="single-order">
+"""
+    for key in keys:
+        result += f"<tr><th>{key}</th>"
+        if isinstance(order[key], str):
+            if key == "cost":
+                result += f"<td>{typeset_dollars(order[key])}</td></tr>"
+            else:
+                non_br_str = f"<td>{escape_html(order[key])}</td></tr>"
+                #allowing for <br> statements to exist for proper address formatting
+                non_br_str = non_br_str.replace("&lt;br&gt;", "<br>")
+                result += non_br_str
+        else:
+            result += f"<td>{(order[key])}</td></tr>"
+    result += """
+    </table>
+</body>
+</html>
+"""
+    return result
+
+#optional, eh
 def render_table_row(order):
     # render a single row of the admin orders table.
     # This is recommended, but not required
     pass
 
 
-def render_orders(order_filters):
-    # render the overall orders admin/orders page
-    pass
+def render_orders(order_filters: dict[str, str]):
+    #raw values for logic/comparison
+    order_number_raw = order_filters.get("order_number", "").strip()
+    status_raw = order_filters.get("status", "").strip()
+    sender_raw = order_filters.get("query", "").strip() 
+    
+    #variables for comparison logic (lowercase for filtering)
+    status = status_raw.lower()
+    sender_comparison = sender_raw.lower()
+    
+    #variables for safe HTML display since they're escaped
+    order_number_html = escape_html(order_number_raw)
+    sender_html = escape_html(sender_raw)
+    status_html = escape_html(status_raw)
+    
+    result = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Orders</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <meta charset="UTF-8">
+</head>
+<body>
+
+    <ul class="nav-bar">
+        <li><a href="/about" class="nav-button">Home page</a></li>
+        <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
+        <li><a href="/order" class="nav-button">Place Order</a></li>
+    </ul>
+    
+    <div class="flex-container" id="title">
+        <h2>Orders</h2>
+    </div>
+
+    <form method="get" action="/orders">
+
+        <div class="form-group">
+            <label for="query">Search From: </label> 
+            <input type="text" id="query" name="query" value="{sender_html}" placeholder="Note: Case-insensitive">
+        </div>
+
+        <div class="form-group">
+            <label for="order_number">Order #:</label> 
+            <input type="text" id="order_number" name="order_number" value="{order_number_html}">
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status:</label>
+            <select id="status" name="status">
+                <option value="" {'selected' if not status_raw else ''}>Any</option>
+                <option value="Completed" {'selected' if status == 'completed' else ''}>Completed</option>
+                <option value="Out for Delivery" {'selected' if status == 'out for delivery' else ''}>Out for Delivery</option>
+                <option value="Placed" {'selected' if status == 'placed' else ''}>Placed</option>
+            </select>
+        </div>
+
+        <button type="submit" class="search-button">Search</button>
+    </form>
+
+    <div class="flex-container" id="shipping-status">"""
+
+    #generate status message like "status of delivered"
+    search_message = []
+    if status_raw:
+        search_message.append(f"status of <strong>{status_html.lower()}</strong>")
+    if sender_raw:
+        search_message.append(f"sender containing <strong>{sender_html}</strong>") 
+        
+    if search_message:
+        result += f"<p>Currently filtering orders by {' and '.join(search_message)}</p>"
+    result += """
+    </div>
+    <table>
+        <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Cost</th>
+            <th>From</th>
+            <th>Address</th>
+            <th>Product</th>
+            <th>Notes</th>
+        </tr>
+"""
+    
+    filtered_orders = []
+    
+    if order_number_raw:
+        try:
+            order_number_int = int(order_number_raw) 
+            if order_number_int < 0:
+                result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+            else:
+                for order in orders:
+                    if order["id"] == order_number_int:
+                        status_match = not status or (order["status"].lower() == status)
+                        sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
+
+                        if status_match and sender_match:
+                            return render_tracking(order) 
+                result += "<tr><td colspan='7'>No order found with that ID matching all filters.</td></tr>"
+        except ValueError:
+            result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+
+    else:
+        for order in orders:
+            status_match = not status or (order["status"].lower() == status)
+            sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
+            
+            if status_match and sender_match:
+                filtered_orders.append(order)
+        
+        if filtered_orders:
+            for order in filtered_orders:
+                result += "<tr>" + format_one_order(order) + "</tr>"
+        else:
+            result += "<tr><td colspan='7'>No orders found matching the selected filters.</td></tr>"
+            
+    result += """
+    </table>
+</body>
+</html>
+"""
+    return result
 
 
 # Provided function -- converts numbers like 42 or 7.347 to "$42.00" or "$7.35"
@@ -158,8 +375,58 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
     This function should return three values (string or bytes, string, int) in a list or tuple. The first is the content to return
     The second is the content-type. The third is the HTTP Status Code for the response
     """
-    # YOUR CODE GOES HERE!
-    pass
+    #step 1: isolate URL and parameters
+    query_pos = url.find("?")
+    if query_pos != -1:
+        query = url[query_pos:]
+        order_filters = parse_query_parameters(query)
+        url = url[:query_pos]
+    else:
+        order_filters = {}
+
+    #step 2: routing
+    match url:
+        
+        #about page
+        case "/" | "/about":
+            return open("static/html/about.html", encoding="utf-8").read(), "text/html", 200
+
+        #orders page (admin)
+        case "/orders" | "/admin/orders":
+            return render_orders(order_filters), "text/html", 200
+        
+        case "/order" | "/admin/orders":
+            return open("static/html/order.html", encoding="utf-8").read(), "text/html", 200
+
+        #main page stick man
+        case "/images/main.png" | "/images/main":
+            return open("static/images/main.png", "rb").read(), "image/png", 200
+
+
+        #staff pictures (if I were to be adding any more pictures I should probably make a different way to index them because this is stupid and unscalable)
+        case "/images/alicejohnson.jpg" | "/images/alicejohnson":
+            return open("static/images/alicejohnson.jpg", "rb").read(), "image/png", 200
+
+        case "/images/bobsmith.jpg" | "/images/bobsmith":
+            return open("static/images/bobsmith.jpg", "rb").read(), "image/png", 200
+
+        case "/images/carollee.jpg" | "/images/carollee":
+            return open("static/images/carollee.jpg", "rb").read(), "image/png", 200
+
+        case "/images/davidkim.jpg" | "/images/davidkim":
+            return open("static/images/davidkim.jpg", "rb").read(), "image/png", 200
+
+        #css
+        case path if path.endswith(".css"):
+            filename = path.lstrip("/")   # remove leading "/"
+            return open(filename, "rb").read(), "text/css", 200
+            
+        #404 page
+        case _:
+            try:
+                return open("static/html/404.html", encoding="utf-8").read(), "text/html", 404
+            except FileNotFoundError:
+                return "<h1>Uh oh super special 404 where not even the 404 page loaded</h1>", "text/html", 404
 
 
 def server_POST(url: str, body: str) -> tuple[str | bytes, str, int]:
