@@ -395,13 +395,13 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
         case "/orders" | "/admin/orders":
             return render_orders(order_filters), "text/html", 200
         
-        case "/order" | "/admin/orders":
+        #new order page
+        case "/order" | "/admin/order":
             return open("static/html/order.html", encoding="utf-8").read(), "text/html", 200
 
-        #main page stick man
+        #main page stick man picture
         case "/images/main.png" | "/images/main":
             return open("static/images/main.png", "rb").read(), "image/png", 200
-
 
         #staff pictures (if I were to be adding any more pictures I should probably make a different way to index them because this is stupid and unscalable)
         case "/images/alicejohnson.jpg" | "/images/alicejohnson":

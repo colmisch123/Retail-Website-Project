@@ -14,28 +14,43 @@
             <li><a href="/order" class="nav-button">Place Order</a></li>
         </ul>
 
+        <div class="flex-container" id="title">
+            <h2>Place an Order</h2>
+        </div>
+
         <!--TODO: Fix this form-->
-        <form method="get" action="/orders">
-
-            <div class="form-group">
-                <label for="query">Search From: </label> 
-                <input type="text" id="query" name="query" value="{sender_html}" placeholder="Note: Case-insensitive">
-            </div>
-
-            <div class="form-group">
-                <label for="order_quantity">Quantity:</label> 
-                <input type="text" id="order_quantity" name="order_quantity" value="{order_quantity_html}">
-            </div>
+        <form method="POST" action="/order">
 
             <div class="form-group">
                 <label for="product">Select a product:</label>
-                <select id="product" name="product">
+                <select id="product" name="product" required>
                     <option value="">Any</option>
                     <option value="angry">Angry stickman</option>
                     <option value="wobbly">Wobbly stickman</option>
-                    <option value="Placed">Placed</option>
+                    <option value="pleased">Pleased stickman</option>
                 </select>
             </div>
+
+             <div class="form-group">
+                <label for="order_quantity">Quantity:</label> 
+                <input type="number" id="order_quantity" name="order_quantity" required>
+            </div>
+
+            <!--TODO: Implement a total cost function (Probably through JS?)-->
+            
+            <div class="form-group">
+                <label for="sender">From: </label> 
+                <input type="text" id="sender" name="sender" placeholder="Please input sender name..." required>
+            </div>
+
+            <div class="form-group">
+                <label for="recipient">Recipient name and address: </label> 
+                <input type="text" id="recipient" name="recipient" placeholder='Please input recipient name/address separated with ":"' required>
+            </div>
+
+            
+           
+
 
             <button type="submit" class="search-button">Search</button>
     </form>
