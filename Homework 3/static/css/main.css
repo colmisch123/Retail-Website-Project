@@ -248,6 +248,18 @@ button[type="submit"] {
     transition: background-color 0.5s ease;
 }
 
+/*Form stuff for place order page*/
+.flex-container#form-collection{
+  display:flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 40%;
+  font-size: 50px;
+}
+
+textarea {
+  resize:none;
+}
 
 
 
