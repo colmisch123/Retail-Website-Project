@@ -270,6 +270,12 @@ textarea {
   display: flex; 
   justify-content: center;
   background-color:#fafafa;
+  border: solid;
+  border-color: #e0e0e0;
+  border-top-width: 1px;
+  border-left-width: 3px;
+  border-bottom-width: 4px;
+  border-right-width: 3px;
   border-radius: 10px;
   width: fit-content;
   margin: 10px auto;

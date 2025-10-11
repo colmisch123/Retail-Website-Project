@@ -178,7 +178,9 @@ def render_tracking(order):
         <h2>Tracking Order #{order_id}</h2>
     </div>
 
-    <div class="flex-container" id="shipping-status">"""
+    <div class="flex-container" id="main-page">
+        <div class="flex-container" id="body-text">
+            <div class="flex-container" id="shipping-status">"""
     match order_status:
         case "completed":
             result += "<p>Your order has been completed! Thank you for shopping with us and be sure to Stick it to the man!</p>"
@@ -186,9 +188,10 @@ def render_tracking(order):
             result += "<p>Your order is currently shipping</p>"
         case "placed":
             result += "<p>Your order has been placed and is processing</p>"
-    result += """</div>
+    result += """
+        </div>
     
-    <table id="single-order">
+        <table id="single-order">
 """
     for key in keys:
         result += f"<tr><th>{key}</th>"
@@ -203,13 +206,42 @@ def render_tracking(order):
         else:
             result += f"<td>{(order[key])}</td></tr>"
     result += """
-    </table>
+            </table>
+        </div>
+
+        <div class="flex-container" id="body-text">
+            <div class="flex-container" id="shipping-status" style="flex-direction:column;">
+                <h3>Order Management</h3>
+                <p>Time remaining until order ships: """ #TODO:FIX THIS TIMER
+    
+    #TODO: fix the delivery address to actually show the current address of the order
+    result +=f"""
+            </div>
+            
+            <div class="flex-container" id="shipping-status" style="flex-direction: column; padding: 10px;">
+                <label for="delivery-address" style="padding:10px">Delivery Address: </label>
+                <br>
+                <textarea id="deliver-address" name="delivery-address" value="{order["address"]}" required rows="4" cols="50"></textarea>"""
+                
+                #TODO: Fix these radio buttons to automatically choose the current order shipping status, and make them actually do stuff form wise
+    result +="""
+                <div>       
+                    <label for="flat">Flat rate</label>
+                    <input type="radio" id="flat" name="shipping_option" value="flat"><br>
+                    <label for="ground">Ground</label>
+                    <input type="radio" id="ground" name="shipping_option" value="Ground"><br>
+                    <label for="expedited">Expedited</label>
+                    <input type="radio" id="expedited" name="shipping_option" value="Expedited"><br>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
 """
     return result
 
-#optional, eh
+#I kinda already have my format_one_order function from previous project iterations, so I'm not using this
 def render_table_row(order):
     # render a single row of the admin orders table.
     # This is recommended, but not required
