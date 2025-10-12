@@ -12,9 +12,10 @@ orders = [
         "cost": 19.79,
         "from": "The Smashing Pumpkins",
         "address": "Billy Corgan<br>123 Easy Street<br>Saint Paul, MN 55123",
-        "product": "angry",
+        "product": "Angry stickman",
         "notes": "Gift wrapped",
         "order date": datetime(2025, 10, 1, 10, 30, 0, tzinfo=timezone.utc),
+        "shipping": "Ground"
     },
     {
         "id": 1,
@@ -25,6 +26,7 @@ orders = [
         "product": "Wobbly stickman",
         "notes": "N/A",
         "order date": datetime(2025, 10, 3, 14, 15, 0, tzinfo=timezone.utc),
+        "shipping": "Expedited"
     },
     {
         "id": 2,
@@ -35,6 +37,7 @@ orders = [
         "product": "Pleased stickman",
         "notes": "Wait he's alive?",
         "order date": datetime(2025, 10, 10, 9, 0, 0, tzinfo=timezone.utc),
+        "shipping": "Expedited"
     },
     {
         "id": 3,
@@ -45,6 +48,7 @@ orders = [
         "product": "Angry stickman",
         "notes": "Fast shipping please",
         "order date": datetime(2025, 9, 15, 11, 45, 0, tzinfo=timezone.utc),
+        "shipping": "Ground"
     },
     {
         "id": 4,
@@ -55,6 +59,7 @@ orders = [
         "product": "Wobbly stickman",
         "notes": "N/A",
         "order date": datetime(2025, 10, 9, 16, 20, 0, tzinfo=timezone.utc),
+        "shipping": "Flat rate"
     },
     {
         "id": 5,
@@ -65,6 +70,7 @@ orders = [
         "product": "Angry stickman",
         "notes": "Leave with neighbor if not home.",
         "order date": datetime(2025, 10, 5, 18, 0, 0, tzinfo=timezone.utc),
+        "shipping": "Ground"
     },
     {
         "id": 6,
@@ -75,6 +81,7 @@ orders = [
         "product": "Pleased stickman",
         "notes": "Birthday gift for sister.",
         "order date": datetime(2025, 9, 20, 12, 10, 0, tzinfo=timezone.utc),
+        "shipping": "Ground"
     },
     {
         "id": 7,
@@ -85,6 +92,7 @@ orders = [
         "product": "Pleased stickman",
         "notes": "N/A",
         "order date": datetime(2025, 10, 11, 8, 5, 0, tzinfo=timezone.utc),
+        "shipping": "Flat rate"
     },
 ]
 
@@ -96,6 +104,24 @@ prices = {
     "Pleased stickman": 6.25,
 }
 
+def ship_order(params: dict) -> bool:
+    """Finds an order and marks it as shipped. Returns True on success."""
+    try:
+        order_id = int(params.get("id", -1))
+        for order in orders:
+            if order["id"] == order_id:
+                # Only ship orders that are currently "Placed"
+                if order["status"] == "Placed":
+                    order["status"] = "Out for delivery"
+                    print(f"Order {order_id} has been shipped.")
+                    return True
+                else:
+                    print(f"Order {order_id} could not be shipped (status: {order['status']}).")
+                    return False
+        return False # Order not found
+    except (ValueError, TypeError):
+        return False
+    
 #untouched from project 2
 def format_one_order(order):
     result = ""
@@ -170,20 +196,24 @@ def parse_query_parameters(response):
 # In server.py
 
 def render_tracking(order):
-    # keys will become the row headers
+    #keys will become the row headers
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
-    order_status = str(order.get("status", "Error: order doesn't have status")).lower()
-    
-    # --- FIX 1: Prepare address for the textarea ---
-    # Replace <br> with newlines and escape the text for security.
-    address_for_textarea = escape_html(order["address"].replace("<br>", "\n"))
+    order_status = str(order.get("shipping", "Error: order doesn't have status"))
+    address_for_textarea = escape_html(order["address"].replace("<br>", "\n"))    #replace <br> with newlines and escape the text for security.
+    notes_for_textarea = escape_html(order["notes"].replace("<br>", "\n"))
 
-    # --- FIX 2: Logic for checking the correct radio button ---
-    # We'll make a simple assumption for the default shipping type
-    flat_checked = "checked" if order_status == "placed" else ""
-    ground_checked = "checked" if order_status == "out for delivery" else ""
-    expedited_checked = "checked" if order_status == "completed" else ""
+    #fill out radio buttons to have proper default value
+    flat_checked, ground_checked, expedited_checked = "", "", ""
+    match order_status:
+        case "Flat rate":
+            flat_checked = "checked"
+        case "Ground":
+            ground_checked = "checked"
+        case "Expedited":
+            expedited_checked = "checked"
+        case _:
+            flat_checked = "checked"
 
     result = f"""
 <!DOCTYPE html>
@@ -192,7 +222,6 @@ def render_tracking(order):
         <title>Order Tracking for #{order_id}</title>
         <link rel="stylesheet" href="/static/css/main.css">
         <meta charset="UTF-8">
-        <script src="/static/js/update.js"></script>
     </head>
 <body>
 
@@ -227,9 +256,9 @@ def render_tracking(order):
         if key == "cost":
             display_value = typeset_dollars(value)
         elif key == "address":
-            display_value = str(value) # Keep <br> tags for display
+            display_value = str(value) #<br> tags were breaking stuff
         elif isinstance(value, datetime):
-            #Format the datetime object nicely
+            #format datetime nicely
             display_value = escape_html(value.strftime('%Y-%m-%d %H:%M:%S'))
         else:
             display_value = escape_html(str(value))
@@ -246,29 +275,47 @@ def render_tracking(order):
                 
                 <p id="countdown-timer" 
                    data-order-date="{order['order date'].isoformat()}" 
-                   data-order-status="{order_status}">
+                   data-order-status="{order_status}"
+                   data-order-id="{order_id}">
                    Time remaining until order ships: Calculating...
                 </p>
-            </div>
+            </div>"""
+    if order["status"] not in ["Cancelled", "Completed"]: #Conditionally removing the update/cancel buttons
+        result += f"""
             
-            <div class="flex-container" id="shipping-status" style="flex-direction: column; padding: 10px;">
+            <form method="POST" action="/update_shipping" class="flex-container" id="shipping-status" style="flex-direction: column; padding: 10px;">
+                
                 <label for="delivery-address" style="padding:10px">Delivery Address: </label>
                 <br>
+                <textarea id="delivery-address" name="address" required rows="4" cols="50">{address_for_textarea}</textarea>
                 
-                <textarea id="deliver-address" name="delivery-address" required rows="4" cols="50">{address_for_textarea}</textarea>
-                
-                <div>       
+                <div style="margin: 20px">       
                     <label for="flat">Flat rate</label>
-                    <input type="radio" id="flat" name="shipping_option" value="flat" {flat_checked}><br>
+                    <input type="radio" id="flat" name="shipping" value="Flat rate" {flat_checked}><br>
                     <label for="ground">Ground</label>
-                    <input type="radio" id="ground" name="shipping_option" value="ground" {ground_checked}><br>
+                    <input type="radio" id="ground" name="shipping" value="Ground" {ground_checked}><br>
                     <label for="expedited">Expedited</label>
-                    <input type="radio" id="expedited" name="shipping_option" value="expedited" {expedited_checked}><br>
+                    <input type="radio" id="expedited" name="shipping" value="Expedited" {expedited_checked}><br>
                 </div>
-            </div>
+
+                <label for="delivery-notes" style="padding:10px">Delivery Notes: </label>
+                <br>
+                <textarea id="delivery-notes" name="notes" required rows="4" cols="50">{notes_for_textarea}</textarea>
+
+                <button type="submit" class="search-button">Update Order</button>
+                <input type="text" name="id" value="{order_id}" hidden>
+            </form>
+    
+            <form method="POST" action="/cancel_order">
+                <button type="submit" class="search-button" style="background-color:red">Cancel Order</button>
+                <input type="text" name="id" value="{order_id}" hidden>
+            </form>"""
+        
+    result +="""
         </div>
     </div>
     
+    <script src="/static/js/update.js"></script>
 </body>
 </html>
 """
@@ -335,6 +382,7 @@ def render_orders(order_filters: dict[str, str]):
                 <option value="Completed" {'selected' if status == 'completed' else ''}>Completed</option>
                 <option value="Out for Delivery" {'selected' if status == 'out for delivery' else ''}>Out for Delivery</option>
                 <option value="Placed" {'selected' if status == 'placed' else ''}>Placed</option>
+                <option value="Cancelled" {'selected' if status == 'cancelled' else ''}>Cancelled</option>
             </select>
         </div>
 
@@ -364,6 +412,7 @@ def render_orders(order_filters: dict[str, str]):
             <th>Product</th>
             <th>Notes</th>
             <th>Time placed</th>
+            <th>Shipping Type</th>
         </tr>
 """
     
@@ -373,7 +422,7 @@ def render_orders(order_filters: dict[str, str]):
         try:
             order_number_int = int(order_number_raw) 
             if order_number_int < 0:
-                result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+                result += "<tr><td colspan='100%'>Invalid order number.</td></tr>"
             else:
                 for order in orders:
                     if order["id"] == order_number_int:
@@ -382,9 +431,9 @@ def render_orders(order_filters: dict[str, str]):
 
                         if status_match and sender_match:
                             return render_tracking(order) 
-                result += "<tr><td colspan='7'>No order found with that ID matching all filters.</td></tr>"
+                result += "<tr><td colspan='100%'>No order found with that ID matching all filters.</td></tr>"
         except ValueError:
-            result += "<tr><td colspan='7'>Invalid order number.</td></tr>"
+            result += "<tr><td colspan='100%'>Invalid order number.</td></tr>"
 
     else:
         for order in orders:
@@ -431,34 +480,30 @@ def render_order_success(order_id):
     <div class="flex-container" id="title">
         <h2>Order Placed Successfully!</h2>
     </div>
-    <div class="flex-container" id="body-text" style="width: 60%;">
-        <p>Your order has been placed with ID: <strong>{order_id}</strong>.</p>
+    <div class="flex-container" id="shipping-status" style="width: 40%">
+        <p>Your order has been updated with ID: <strong>{order_id}</strong>.</p>
+        <br>
         <p><a href="/orders?order_number={order_id}">Click here to track your order.</a></p>
     </div>
 </body>
 </html>
-""", "text/html", 201 # 201 Created
+""", "text/html", 201
 
 #should be ok?
 def add_new_order(params: dict) -> int | None:
-    required_fields = ["product", "order_quantity", "sender", "recipient"]
-    for field in required_fields: #ensure all inputs are filled
+    required_fields = ["product", "order_quantity", "sender", "recipient", "shipping_option"]
+    for field in required_fields:
         if not params.get(field):
             print(f"Validation failed: Missing field '{field}'")
             return None
+            
     product = params["product"]
     quantity = int(params.get("order_quantity", 0))
-    if product not in prices or quantity <= 0: #double check valid item and order_quantity
+    if product not in prices or quantity <= 0:
         print("Error: invalid product or quantity")
         return None
     
-    #this block makes sure the new order id will be unique
-    new_id = 0 
-    for order in orders:
-        new_id = max(new_id, order["id"])
-    if new_id != 0:
-        new_id += 1
-
+    new_id = len(orders) #ensure we get a new number every time
     #recipient is parsed by a colon with name:address. 
     #Honestly if i were doing this myself I'd input them as separate fields, but I'm just recreating what was in the screenshots sooo
     recipient_parts = params["recipient"].split(":", 1) 
@@ -473,22 +518,36 @@ def add_new_order(params: dict) -> int | None:
         "cost": prices[product] * quantity,
         "from": params["sender"],
         "address": address,
-        "product": f"{quantity}x {product.capitalize()} stickman",
-        "notes": "N/A",
-        "order date": datetime.now(timezone.utc)
+        "product": f"{quantity}x {product.capitalize()}",
+        "notes": params["notes"],
+        "order date": datetime.now(timezone.utc),
+        "shipping": params["shipping_option"]
     }
 
     orders.append(new_order)
-    print(f"Successfully added new order with ID: {new_id}")
+    # print(f"added new order with ID: {new_id}")
     return new_id
 
-
 def cancel_order(params):
-    pass
+    for order in orders:
+        if order["id"] == int(params["id"]):
+            if order["status"] not in ["Completed", "Cancelled"]:
+                order["status"] = "Cancelled"
+                return True
+            else:
+                break #we have found the correct order, but it cannot be updated so we break
+    return False
 
 
 def update_shipping_info(params):
-    pass
+    for order in orders:
+        if order["id"] == int(params["id"]):
+            if order["status"] not in ["Completed", "Cancelled"]:
+                order["shipping"] = params["shipping"]
+                if params["notes"]: #update notes if they're edited
+                    order["notes"] = params["notes"] 
+                return True
+    return False
 
 
 def server_GET(url: str) -> tuple[str | bytes, str, int]:
@@ -546,12 +605,13 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
 
         #css
         case path if path.endswith(".css"):
-            filename = path.lstrip("/")   # remove leading "/"
+            filename = path.lstrip("/")
             return open(filename, "rb").read(), "text/css", 200
         
+        #js
         case "/js/update.js":
             return open("static/js/update.js").read(), "application/javascript", 200
-            
+
         #404 page
         case _:
             try:
@@ -575,12 +635,34 @@ def server_POST(url: str, body: str) -> tuple[str | bytes, str, int]:
         case "/order":
             params = parse_query_parameters("?" + body)
             new_order_id = add_new_order(params)
-            
             if new_order_id is not None:
                 return render_order_success(new_order_id)
             else:
                 return open("static/html/order_fail.html").read(), "text/html", 400
+            
+        case "/ship_order":
+            params = parse_query_parameters("?" + body)
+            if ship_order(params):
+                return "Success", "text/plain", 200
+            else:
+                return "Failure", "text/plain", 400 # Bad request (e.g., already shipped)
+            
+        case "/cancel_order":
+            params = parse_query_parameters("?" + body)
+            if cancel_order(params):
+                return render_order_success(params["id"]), "text/html", 200 #TODO: Need to return a whole page here, maybe change the order success page to just say "order updated"
+            else:
+                return open("static/html/order_fail.html").read(), "text/html", 400 #order doesn't exist or has been completed
+            
+        case "/update_shipping":
+            params = parse_query_parameters("?" + body)
+            if update_shipping_info(params):
+                return render_order_success(params["id"]), "text/html", 200
+            else:
+                return open("static/html/order_fail.html").read(), "text/html", 400
+            
         case _:
+            print("Problem URL: ", url)
             return "<h1>Not Found</h1>", "text/html", 404
 
 

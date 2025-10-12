@@ -4,7 +4,6 @@
         <title>Ordering Form</title>
         <meta charset="UTF-8">
         <link rel="stylesheet" href="/static/css/main.css">
-        <script src="/static/js/order.js"></script>
     </head>
     <body>
         <ul class="nav-bar">
@@ -21,10 +20,10 @@
             <div class="form-group">
                 <label for="product">Select a product:</label>
                 <select id="product" name="product" required>
-                    <option value="">--Please choose an option--</option>
-                    <option value="angry">Angry stickman</option>
-                    <option value="wobbly">Wobbly stickman</option>
-                    <option value="pleased">Pleased stickman</option>
+                    <option value="">None selected</option>
+                    <option value="Angry stickman">Angry stickman</option>
+                    <option value="Wobbly stickman">Wobbly stickman</option>
+                    <option value="Pleased stickman">Pleased stickman</option>
                 </select>
             </div>
 
@@ -40,10 +39,13 @@
                 <div>
                     <input type="radio" id="flat" name="shipping_option" value="Flat rate" required>
                     <label for="flat">Flat rate</label><br>
-                    <input type="radio" id="ground" name="shipping_option" value="Ground">
+
+                    <input type="radio" id="ground" name="shipping_option" value="Ground" required>
                     <label for="ground">Ground</label><br>
-                    <input type="radio" id="expedited" name="shipping_option" value="Expedited">
-                    <label for="expedited">Expedited</label>
+
+                    <input type="radio" id="expedited" name="shipping_option" value="Expedited" required>
+                    <label for="expedited">Expedited</label><br>
+
                 </div>
             </div>
             <div class="form-group">
@@ -52,14 +54,19 @@
             </div>
             
             <div class="form-group">
-                <label for="recipient" >Recipient name and address: </label>
+                <label for="recipient">Recipient name and address: </label>
                 <br>
                 <textarea id="recipient" name="recipient" placeholder='Please input recipient name and address separated by ":"' required rows="4" cols="50"></textarea>
             </div>
 
             <div class="form-group">
+                <label for="notes">Additional notes: </label>
+                <br>
+                <textarea id="notes" name="notes" placeholder="Any special requests?" rows="4" cols="50"></textarea>
+            </div>
+
+            <div class="form-group">
                 <button type="submit" class="search-button">Submit</button>
-                <button type="button" id="prefill_button" class="search-button" style="background-color: #5c8eac; margin-left: 10px;">Prefill Form</button>
             </div>
         </form>
 

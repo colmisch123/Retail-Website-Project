@@ -248,6 +248,11 @@ button[type="submit"] {
     transition: background-color 0.5s ease;
 }
 
+button[type="submit"]:hover {
+    background-color: #03e848;
+    transition: background-color 0.5s ease;
+}
+
 /*Form stuff for place order page*/
 .flex-container#form-collection{
   display:flex;
