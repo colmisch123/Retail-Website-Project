@@ -4,10 +4,9 @@
         <title>Ordering Form</title>
         <meta charset="UTF-8">
         <link rel="stylesheet" href="/static/css/main.css">
+        <script src="/static/js/order.js"></script>
     </head>
     <body>
-        <!--Links-->
-        <!--Referenced https://www.w3schools.com/css/css_navbar_horizontal.asp when building navigation bar-->
         <ul class="nav-bar">
             <li><a href="/about" class="nav-button">Home page</a></li>
             <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
@@ -18,29 +17,37 @@
             <h2>Place an Order</h2>
         </div>
 
-        <!--TODO: Implement functionality of this form-->
         <form method="POST" action="/order" class="flex-container" id="form-collection">
-            <!--Referenced https://www.w3schools.com/tags/tag_textarea.asp for stylizing the areas of certain elements-->
             <div class="form-group">
                 <label for="product">Select a product:</label>
                 <select id="product" name="product" required>
-                    <option value="">Any</option>
+                    <option value="">--Please choose an option--</option>
                     <option value="angry">Angry stickman</option>
                     <option value="wobbly">Wobbly stickman</option>
                     <option value="pleased">Pleased stickman</option>
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="quantity_field">
                 <label for="order_quantity">Quantity:</label> 
-                <input type="number" id="order_quantity" name="order_quantity" required>
+                <input type="number" id="order_quantity" name="order_quantity" required min="1">
             </div>
 
-            <!--TODO: Implement a total cost function (Probably through JS?)-->
+            <div id="total_cost" style="display: none; font-size: 20px; font-weight: bold; margin-top: 10px;"></div>
             
             <div class="form-group">
-                <label for="sender">From: </label>
-                <br>
+                <label>Shipping Method:</label>
+                <div>
+                    <input type="radio" id="flat" name="shipping_option" value="Flat rate" required>
+                    <label for="flat">Flat rate</label><br>
+                    <input type="radio" id="ground" name="shipping_option" value="Ground">
+                    <label for="ground">Ground</label><br>
+                    <input type="radio" id="expedited" name="shipping_option" value="Expedited">
+                    <label for="expedited">Expedited</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="sender">From: </label><br>
                 <textarea id="sender" name="sender" placeholder="Please input sender name..." required rows="4" cols="50"></textarea>
             </div>
             
@@ -50,11 +57,11 @@
                 <textarea id="recipient" name="recipient" placeholder='Please input recipient name and address separated by ":"' required rows="4" cols="50"></textarea>
             </div>
 
-            <!--TODO: implement some form of "Order date" thing to display the current date-->
-            <button type="submit" class="search-button">Submit</button>
+            <div class="form-group">
+                <button type="submit" class="search-button">Submit</button>
+                <button type="button" id="prefill_button" class="search-button" style="background-color: #5c8eac; margin-left: 10px;">Prefill Form</button>
+            </div>
         </form>
-
-
 
     </body>
 </html>

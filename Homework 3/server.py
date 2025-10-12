@@ -1,7 +1,8 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import urllib
 import re
-
+from datetime import datetime, timezone
+    
 orders = [
     #Note used ChatGPT to generate some of the orders here (which should be allowed by the syllabus)
     #For the prompt, I created the first order by hand and asked "This is a dictionary to represent a fictional order for a website I'm building, can you give me more like this?"
@@ -11,8 +12,9 @@ orders = [
         "cost": 19.79,
         "from": "The Smashing Pumpkins",
         "address": "Billy Corgan<br>123 Easy Street<br>Saint Paul, MN 55123",
-        "product": "Bushy Brow Man",
+        "product": "angry",
         "notes": "Gift wrapped",
+        "order date": datetime(2025, 10, 1, 10, 30, 0, tzinfo=timezone.utc),
     },
     {
         "id": 1,
@@ -20,8 +22,9 @@ orders = [
         "cost": 42.50,
         "from": "Radiohead",
         "address": "Thom Yorke<br>456 Crescent Ave<br>Brooklyn, NY 11215",
-        "product": "Frowning Man",
+        "product": "Wobbly stickman",
         "notes": "N/A",
+        "order date": datetime(2025, 10, 3, 14, 15, 0, tzinfo=timezone.utc),
     },
     {
         "id": 2,
@@ -29,8 +32,9 @@ orders = [
         "cost": 27.95,
         "from": "Nirvana",
         "address": "Kurt Cobain<br>789 River Rd<br>Seattle, WA 98109",
-        "product": "Dancing man",
+        "product": "Pleased stickman",
         "notes": "Wait he's alive?",
+        "order date": datetime(2025, 10, 10, 9, 0, 0, tzinfo=timezone.utc),
     },
     {
         "id": 3,
@@ -38,8 +42,9 @@ orders = [
         "cost": 8.99,
         "from": "Fleetwood Mac",
         "address": "Stevie Nicks<br>1550 Golden Rd<br>Los Angeles, CA 90026",
-        "product": "2x Frowning Man",
+        "product": "Angry stickman",
         "notes": "Fast shipping please",
+        "order date": datetime(2025, 9, 15, 11, 45, 0, tzinfo=timezone.utc),
     },
     {
         "id": 4,
@@ -47,8 +52,9 @@ orders = [
         "cost": 65.40,
         "from": "Red Hot Chili Peppers",
         "address": "Anthony Kiedis<br>900 Venice Blvd<br>Venice, CA 90291",
-        "product": "Wobbly Man",
+        "product": "Wobbly stickman",
         "notes": "N/A",
+        "order date": datetime(2025, 10, 9, 16, 20, 0, tzinfo=timezone.utc),
     },
     {
         "id": 5,
@@ -56,8 +62,9 @@ orders = [
         "cost": 12.35,
         "from": "The Black Keys",
         "address": "Dan Auerbach<br>4131 Rubber Factory Ln<br>Akron, OH 44304",
-        "product": "2x Wobbly Man, Frowning Man",
+        "product": "Angry stickman",
         "notes": "Leave with neighbor if not home.",
+        "order date": datetime(2025, 10, 5, 18, 0, 0, tzinfo=timezone.utc),
     },
     {
         "id": 6,
@@ -65,8 +72,9 @@ orders = [
         "cost": 33.00,
         "from": "The White Stripes",
         "address": "Jack White<br>777 Cass Corridor St<br>Detroit, MI 48201",
-        "product": "Chilling Man",
+        "product": "Pleased stickman",
         "notes": "Birthday gift for sister.",
+        "order date": datetime(2025, 9, 20, 12, 10, 0, tzinfo=timezone.utc),
     },
     {
         "id": 7,
@@ -74,12 +82,19 @@ orders = [
         "cost": 14.55,
         "from": "Tame Impala",
         "address": "Kevin Parker<br>200 Lonerism Way<br>Perth, WA 6000, Australia",
-        "product": "Angry Man",
+        "product": "Pleased stickman",
         "notes": "N/A",
+        "order date": datetime(2025, 10, 11, 8, 5, 0, tzinfo=timezone.utc),
     },
 ]
 
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
+
+prices = {
+    "Angry stickman": 5.99,
+    "Wobbly stickman": 7.50,
+    "Pleased stickman": 6.25,
+}
 
 #untouched from project 2
 def format_one_order(order):
@@ -152,12 +167,24 @@ def parse_query_parameters(response):
 
 
 #TODO: Add the separate box to show the time remaining on the order.
+# In server.py
+
 def render_tracking(order):
-    #keys will become the row headers
+    # keys will become the row headers
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
     order_status = str(order.get("status", "Error: order doesn't have status")).lower()
     
+    # --- FIX 1: Prepare address for the textarea ---
+    # Replace <br> with newlines and escape the text for security.
+    address_for_textarea = escape_html(order["address"].replace("<br>", "\n"))
+
+    # --- FIX 2: Logic for checking the correct radio button ---
+    # We'll make a simple assumption for the default shipping type
+    flat_checked = "checked" if order_status == "placed" else ""
+    ground_checked = "checked" if order_status == "out for delivery" else ""
+    expedited_checked = "checked" if order_status == "completed" else ""
+
     result = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -165,13 +192,14 @@ def render_tracking(order):
         <title>Order Tracking for #{order_id}</title>
         <link rel="stylesheet" href="/static/css/main.css">
         <meta charset="UTF-8">
+        <script src="/static/js/update.js"></script>
     </head>
 <body>
 
     <ul class="nav-bar">
-            <li><a href="/about" class="nav-button">Home page</a></li>
-            <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
-            <li><a href="/order" class="nav-button">Place Order</a></li>
+        <li><a href="/about" class="nav-button">Home page</a></li>
+        <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
+        <li><a href="/order" class="nav-button">Place Order</a></li>
     </ul>
     
     <div class="flex-container" id="title">
@@ -189,53 +217,58 @@ def render_tracking(order):
         case "placed":
             result += "<p>Your order has been placed and is processing</p>"
     result += """
-        </div>
+            </div>
     
-        <table id="single-order">
+            <table id="single-order">
 """
     for key in keys:
-        result += f"<tr><th>{key}</th>"
-        if isinstance(order[key], str):
-            if key == "cost":
-                result += f"<td>{typeset_dollars(order[key])}</td></tr>"
-            else:
-                non_br_str = f"<td>{escape_html(order[key])}</td></tr>"
-                #allowing for <br> statements to exist for proper address formatting
-                non_br_str = non_br_str.replace("&lt;br&gt;", "<br>")
-                result += non_br_str
+        value = order[key]
+        display_value = ""
+        if key == "cost":
+            display_value = typeset_dollars(value)
+        elif key == "address":
+            display_value = str(value) # Keep <br> tags for display
+        elif isinstance(value, datetime):
+            #Format the datetime object nicely
+            display_value = escape_html(value.strftime('%Y-%m-%d %H:%M:%S'))
         else:
-            result += f"<td>{(order[key])}</td></tr>"
-    result += """
+            display_value = escape_html(str(value))
+        
+        result += f"<tr><th>{escape_html(key.upper())}</th><td>{display_value}</td></tr>"
+
+    result += f"""
             </table>
         </div>
 
         <div class="flex-container" id="body-text">
             <div class="flex-container" id="shipping-status" style="flex-direction:column;">
                 <h3>Order Management</h3>
-                <p>Time remaining until order ships: """ #TODO:FIX THIS TIMER
-    
-    #TODO: fix the delivery address to actually show the current address of the order
-    result +=f"""
+                
+                <p id="countdown-timer" 
+                   data-order-date="{order['order date'].isoformat()}" 
+                   data-order-status="{order_status}">
+                   Time remaining until order ships: Calculating...
+                </p>
             </div>
             
             <div class="flex-container" id="shipping-status" style="flex-direction: column; padding: 10px;">
                 <label for="delivery-address" style="padding:10px">Delivery Address: </label>
                 <br>
-                <textarea id="deliver-address" name="delivery-address" value="{order["address"]}" required rows="4" cols="50"></textarea>"""
                 
-                #TODO: Fix these radio buttons to automatically choose the current order shipping status, and make them actually do stuff form wise
-    result +="""
+                <textarea id="deliver-address" name="delivery-address" required rows="4" cols="50">{address_for_textarea}</textarea>
+                
                 <div>       
                     <label for="flat">Flat rate</label>
-                    <input type="radio" id="flat" name="shipping_option" value="flat"><br>
+                    <input type="radio" id="flat" name="shipping_option" value="flat" {flat_checked}><br>
                     <label for="ground">Ground</label>
-                    <input type="radio" id="ground" name="shipping_option" value="Ground"><br>
+                    <input type="radio" id="ground" name="shipping_option" value="ground" {ground_checked}><br>
                     <label for="expedited">Expedited</label>
-                    <input type="radio" id="expedited" name="shipping_option" value="Expedited"><br>
+                    <input type="radio" id="expedited" name="shipping_option" value="expedited" {expedited_checked}><br>
                 </div>
             </div>
         </div>
     </div>
+    
 </body>
 </html>
 """
@@ -330,6 +363,7 @@ def render_orders(order_filters: dict[str, str]):
             <th>Address</th>
             <th>Product</th>
             <th>Notes</th>
+            <th>Time placed</th>
         </tr>
 """
     
@@ -379,12 +413,74 @@ def typeset_dollars(number):
     return f"${number:.2f}"
 
 
-def render_order_success(order):
-    pass
+def render_order_success(order_id):
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Order Success!</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <meta charset="UTF-8">
+</head>
+<body>
+    <ul class="nav-bar">
+        <li><a href="/about" class="nav-button">Home page</a></li>
+        <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
+        <li><a href="/order" class="nav-button">Place Order</a></li>
+    </ul>
+    <div class="flex-container" id="title">
+        <h2>Order Placed Successfully!</h2>
+    </div>
+    <div class="flex-container" id="body-text" style="width: 60%;">
+        <p>Your order has been placed with ID: <strong>{order_id}</strong>.</p>
+        <p><a href="/orders?order_number={order_id}">Click here to track your order.</a></p>
+    </div>
+</body>
+</html>
+""", "text/html", 201 # 201 Created
 
+#should be ok?
+def add_new_order(params: dict) -> int | None:
+    required_fields = ["product", "order_quantity", "sender", "recipient"]
+    for field in required_fields: #ensure all inputs are filled
+        if not params.get(field):
+            print(f"Validation failed: Missing field '{field}'")
+            return None
+    product = params["product"]
+    quantity = int(params.get("order_quantity", 0))
+    if product not in prices or quantity <= 0: #double check valid item and order_quantity
+        print("Error: invalid product or quantity")
+        return None
+    
+    #this block makes sure the new order id will be unique
+    new_id = 0 
+    for order in orders:
+        new_id = max(new_id, order["id"])
+    if new_id != 0:
+        new_id += 1
 
-def add_new_order(params):
-    pass
+    #recipient is parsed by a colon with name:address. 
+    #Honestly if i were doing this myself I'd input them as separate fields, but I'm just recreating what was in the screenshots sooo
+    recipient_parts = params["recipient"].split(":", 1) 
+    if len(recipient_parts) > 1:
+        address = recipient_parts[1].strip().replace("\n", "<br>") 
+    else:
+        params["recipient"]
+
+    new_order = {
+        "id": new_id,
+        "status": "Placed",
+        "cost": prices[product] * quantity,
+        "from": params["sender"],
+        "address": address,
+        "product": f"{quantity}x {product.capitalize()} stickman",
+        "notes": "N/A",
+        "order date": datetime.now(timezone.utc)
+    }
+
+    orders.append(new_order)
+    print(f"Successfully added new order with ID: {new_id}")
+    return new_id
 
 
 def cancel_order(params):
@@ -452,13 +548,16 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
         case path if path.endswith(".css"):
             filename = path.lstrip("/")   # remove leading "/"
             return open(filename, "rb").read(), "text/css", 200
+        
+        case "/js/update.js":
+            return open("static/js/update.js").read(), "application/javascript", 200
             
         #404 page
         case _:
             try:
                 return open("static/html/404.html", encoding="utf-8").read(), "text/html", 404
             except FileNotFoundError:
-                return "<h1>Uh oh super special 404 where not even the 404 page loaded</h1>", "text/html", 404
+                return "<h1>Uh oh super special 404 where not even the 404 page loaded</h1>", "text/html", 500
 
 
 def server_POST(url: str, body: str) -> tuple[str | bytes, str, int]:
@@ -472,7 +571,17 @@ def server_POST(url: str, body: str) -> tuple[str | bytes, str, int]:
     This function should return three values (string or bytes, string, int) in a list or tuple. The first is the content to return
     The second is the content-type. The third is the HTTP Status Code for the response
     """
-    pass
+    match url:
+        case "/order":
+            params = parse_query_parameters("?" + body)
+            new_order_id = add_new_order(params)
+            
+            if new_order_id is not None:
+                return render_order_success(new_order_id)
+            else:
+                return open("static/html/order_fail.html").read(), "text/html", 400
+        case _:
+            return "<h1>Not Found</h1>", "text/html", 404
 
 
 # You shouldn't need to change content below this. It would be best if you just left it alone.
