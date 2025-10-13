@@ -34,7 +34,7 @@ orders = [
         "cost": 27.95,
         "from": "Nirvana",
         "address": "Kurt Cobain<br>789 River Rd<br>Seattle, WA 98109",
-        "product": "Pleased stickman",
+        "product": "2x Pleased stickman",
         "notes": "Wait he's alive?",
         "order date": datetime(2025, 10, 10, 9, 0, 0, tzinfo=timezone.utc),
         "shipping": "Expedited"
@@ -56,7 +56,7 @@ orders = [
         "cost": 65.40,
         "from": "Red Hot Chili Peppers",
         "address": "Anthony Kiedis<br>900 Venice Blvd<br>Venice, CA 90291",
-        "product": "Wobbly stickman",
+        "product": "4x Wobbly stickman",
         "notes": "N/A",
         "order date": datetime(2025, 10, 9, 16, 20, 0, tzinfo=timezone.utc),
         "shipping": "Flat rate"
@@ -67,7 +67,7 @@ orders = [
         "cost": 12.35,
         "from": "The Black Keys",
         "address": "Dan Auerbach<br>4131 Rubber Factory Ln<br>Akron, OH 44304",
-        "product": "Angry stickman",
+        "product": "2x Angry stickman",
         "notes": "Leave with neighbor if not home.",
         "order date": datetime(2025, 10, 5, 18, 0, 0, tzinfo=timezone.utc),
         "shipping": "Ground"
@@ -89,7 +89,7 @@ orders = [
         "cost": 14.55,
         "from": "Tame Impala",
         "address": "Kevin Parker<br>200 Lonerism Way<br>Perth, WA 6000, Australia",
-        "product": "Pleased stickman",
+        "product": "3x Pleased stickman",
         "notes": "N/A",
         "order date": datetime(2025, 10, 11, 8, 5, 0, tzinfo=timezone.utc),
         "shipping": "Flat rate"
@@ -98,25 +98,33 @@ orders = [
 
 # PUT YOUR GLOBAL VARIABLES AND HELPER FUNCTIONS HERE.
 
+#I don't ever actually use this one in code, but I got sick of bouncing around between what I do 
+#and do not have as shipping statuses, so I'm keeping this here as a reminder for what I
+#will and will not account for. 
+shipping_statuses = {"Delivered", "Placed", "Shipped", "Cancelled"}
+
+#Similar story to the variable above.
 prices = {
     "Angry stickman": 5.99,
     "Wobbly stickman": 7.50,
     "Pleased stickman": 6.25,
 }
 
+#helper function that is called on by update.js
+#it simply marks a given order status from "Placed" to "Shipped" 
 def ship_order(params: dict) -> bool:
-    """Finds an order and marks it as shipped. Returns True on success."""
-    order_id = int(params.get("id", -1))
-    for order in orders:
-        if order["id"] == order_id:
-            #only ship orders that are currently "Placed"
-            if order["status"] == "Placed":
-                order["status"] = "Shipped"
-                return True
-            else:
-                return False
-    return False #order not found
-    
+    try:
+        order_id = int(params.get("id", -1))
+        for order in orders:
+            if order["id"] == order_id:
+                if order["status"] == "Placed":
+                    order["status"] = "Shipped"
+                    return True
+        return False
+    except (ValueError, TypeError):
+        return False
+
+
 #untouched from project 2
 def format_one_order(order):
     result = ""
@@ -138,6 +146,7 @@ def format_one_order(order):
             result += f"<td>{escape_html(item_value)}</td>\n"
     return result
 
+
 #untouched from project 2
 def escape_html(s):
     # Only escape the characters that have special meaning in HTML.
@@ -151,6 +160,7 @@ def escape_html(s):
     
     return s
 
+
 #untouched from project 2
 def unescape_url(url_str):
     import urllib.parse
@@ -158,11 +168,11 @@ def unescape_url(url_str):
     # NOTE -- this is the only place urllib is allowed on this assignment.
     return urllib.parse.unquote_plus(url_str)
 
+
 #untouched from project 2
 def parse_query_parameters(response):
     if not response.startswith('?'):
         return {}
-
     response = response[1:] #get rid of '?'
     if not response:
         return {} #return empty for empty query
@@ -181,24 +191,23 @@ def parse_query_parameters(response):
             value = unescape_url(key_value[1])
         else:
             value = "" 
-            
+
         pairs[key] = value
         
     return pairs
 
+
 def render_tracking(order):
-    # keys will become the row headers
+    #keys will become the row headers
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
     order_status = str(order.get("status", "Error: order doesn't have status")).lower()
     
-    # These are correct as they are.
     address_for_textarea = escape_html(order["address"].replace("<br>", "\n"))
     notes_for_textarea = escape_html(order["notes"].replace("<br>", "\n"))
 
-    # fill out radio buttons to have proper default value
+    #fill out radio buttons to have proper default value
     flat_checked, ground_checked, expedited_checked = "", "", ""
-    # Match against the actual shipping field
     match order.get("shipping"):
         case "Flat rate":
             flat_checked = "checked"
@@ -314,7 +323,7 @@ def render_tracking(order):
 """
     return result
 
-#I kinda already have my format_one_order function from previous project iterations, so I'm not using this
+#I kinda already have my format_one_order(order) function from previous project iterations, so I'm not using this
 def render_table_row(order):
     # render a single row of the admin orders table.
     # This is recommended, but not required
@@ -455,6 +464,7 @@ def typeset_dollars(number):
     return f"${number:.2f}"
 
 
+#Page to tell the user that their work has updated their order
 def render_order_success(order_id):
     return f"""
 <!DOCTYPE html>
@@ -471,17 +481,18 @@ def render_order_success(order_id):
         <li><a href="/order" class="nav-button">Place Order</a></li>
     </ul>
     <div class="flex-container" id="title">
-        <h2>Order Placed Successfully!</h2>
+        <h2>Order Updated Successfully!</h2>
     </div>
     <div class="flex-container" id="shipping-status" style="width: 40%">
-        <p>Your order has been updated with ID: <strong>{order_id}</strong>.</p>
+        <p>Your order has been updated with ID: <strong>{order_id}</strong> </p>
         <br>
         <p><a href="/orders?order_number={order_id}">Click here to track your order.</a></p>
     </div>
 </body>
 </html>
-""", "text/html", 201
+"""
 
+#create a new order given a set of params
 def add_new_order(params: dict) -> int | None:
     required_fields = ["product", "order_quantity", "sender", "recipient", "shipping_option"]
     for field in required_fields:
@@ -520,30 +531,41 @@ def add_new_order(params: dict) -> int | None:
     return new_id
 
 
+#given an order ID, set its status to "Cancelled"
 def cancel_order(params):
-    for order in orders:
-        if order["id"] == int(params["id"]):
-            if order["status"] not in ["Shipped", "Delivered", "Cancelled"]:
-                order["status"] = "Cancelled"
-                return True
-            else:
-                break #we have found the correct order, but it cannot be updated so we break
-    return False
+    try:
+        order_id = int(params.get("id", -1))
+        for order in orders:
+            if order["id"] == order_id:
+                if order["status"] not in ["Completed", "Cancelled", "Delivered"]:
+                    order["status"] = "Cancelled"
+                    return True
+                else:
+                    return False #found the order, but it can't be cancelled        
+        return False #meaning no order with that ID was found
+    except (ValueError, TypeError):
+        print("Invalid info given to cancel_order")
+        return False
 
-
+#edit the params of an existing shipment to the given ones
 def update_shipping_info(params):
-    for order in orders:
-        if order["id"] == int(params["id"]):
-            if order["status"] not in ["Completed", "Cancelled"]:
-                order["shipping"] = params["shipping"]
-                if params["address"]: #update address if provided, converting newlines to <br> tags
-                    order["address"] = params["address"].replace("\n", "<br>")
-                if params["notes"]: #same story with notes
-                    order["notes"] = params["notes"].replace("\n", "<br>")
-                return True
-    return False #order with input params was not found
+    try:
+        order_id = int(params.get("id", -1))
+        for order in orders:
+            if order["id"] == order_id:
+                if order["status"] == "Placed": #ensure order can still be updated
+                    order["shipping"] = params.get("shipping", order["shipping"])
+                    if "address" in params: #update address if provided, converting newlines to <br> tags
+                        order["address"] = params["address"].replace("\n", "<br>")
+                    if "notes" in params: #same story with notes
+                        order["notes"] = params["notes"].replace("\n", "<br>")
+                    return True
+        return False #order with input params was not found
+    except (ValueError, TypeError):
+        return False #invalid params given
 
 
+#mostly unchanged from project 2, but accounts for new things like Javascript files and includes status codes now
 def server_GET(url: str) -> tuple[str | bytes, str, int]:
     """
     url is a *PARTIAL* URL. If the browser requests `http://localhost:4131/contact?name=joe`
@@ -576,6 +598,16 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
         case "/orders" | "/admin/orders":
             return render_orders(order_filters), "text/html", 200
         
+        #block to handle /tracking/#
+        case path if path.startswith("/tracking/"):
+                parts = path.split('/')
+                if len(parts) >= 3 and parts[-1].isdigit():
+                    order_id = int(parts[-1])
+                    for order in orders:
+                        if order["id"] == order_id:
+                            return render_tracking(order), "text/html", 200
+                    return open("static/html/404.html", encoding="utf-8").read(), "text/html", 404 #didn't find the order so we return 404
+
         #new order page
         case "/order" | "/admin/order":
             return open("static/html/order.html", encoding="utf-8").read(), "text/html", 200
@@ -597,7 +629,11 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
         case "/images/davidkim.jpg" | "/images/davidkim":
             return open("static/images/davidkim.jpg", "rb").read(), "image/png", 200
 
-        #css
+        #specific route to /main.css (the autograder was getting mad at me)
+        case "/main.css":
+            return open("static/css/main.css", "rb").read(), "text/css", 200
+
+        #generic route for any other path to main.css
         case path if path.endswith(".css"):
             filename = path.lstrip("/")
             return open(filename, "rb").read(), "text/css", 200
@@ -633,32 +669,32 @@ def server_POST(url: str, body: str) -> tuple[str | bytes, str, int]:
             params = parse_query_parameters("?" + body)
             new_order_id = add_new_order(params)
             if new_order_id is not None:
-                return render_order_success(new_order_id)
+                return render_order_success(new_order_id), "text/html", 201
             else:
                 return open("static/html/order_fail.html").read(), "text/html", 400
             
-        #this function is called by the update file
+        #this function is called by the update.js to mark an order as "shipped" when its respective timer expires.
         case "/ship_order":
             params = parse_query_parameters("?" + body)
             if ship_order(params):
                 return "Success", "text/plain", 200
             else:
-                return "Failure", "text/plain", 400 # Bad request (e.g., already shipped)
-            
+                return "Failure", "text/plain", 400
+        
         case "/cancel_order":
             params = parse_query_parameters("?" + body)
             if cancel_order(params):
-                return render_order_success(params["id"]), "text/html", 200 #TODO: Need to return a whole page here, maybe change the order success page to just say "order updated"
+                return render_order_success(params["id"]), "text/html", 200
             else:
-                return open("static/html/order_fail.html").read(), "text/html", 400 #order doesn't exist or has been completed
-            
+                return open("static/html/order_fail.html").read(), "text/html", 400 #order doesn't exist or does not have status "placed"
+        
         case "/update_shipping":
             params = parse_query_parameters("?" + body)
             if update_shipping_info(params):
                 return render_order_success(params["id"]), "text/html", 200
             else:
-                return open("static/html/order_fail.html").read(), "text/html", 400
-            
+                return open("static/html/order_fail.html").read(), "text/html", 400 #order doesn't exist or does not have status "placed"
+        
         case _:
             print("Problem URL: ", url)
             return "<h1>Not Found</h1>", "text/html", 404

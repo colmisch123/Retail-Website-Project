@@ -8,26 +8,28 @@ document.addEventListener("DOMContentLoaded", function() {
     var flatRateRadio = document.getElementById("flat");
     var prefillButton = document.getElementById("prefill_button");
 
-    //Used for price calculation tool
+    //dictionary for price calculation tool
     var PRICES = {
         "Angry stickman": 5.99,
         "Wobbly stickman": 7.50,
         "Pleased stickman": 6.25,
     };
 
+    //function for showing the current order cost on the order screen
     function updateTotalCost() {
         var selectedProduct = productSelect.value;
         var quantity = parseInt(quantityInput.value);
 
         if (selectedProduct && quantity > 0 && PRICES[selectedProduct]) {
-            var total = (PRICES[selectedProduct] * quantity).toFixed(2);
+            var total = (PRICES[selectedProduct] * quantity).toFixed(2); //format as money by rounding to two decimal places
             totalCostDisplay.textContent = "Total Cost: $" + total;
             totalCostDisplay.style.display = 'block';
         } else {
-            totalCostDisplay.style.display = 'none';
+            totalCostDisplay.style.display = 'none'; //hide if no item is chosen
         }
     }
 
+    //if we don't have any item selected, the price gets hidden
     function toggleQuantityField() {
         if (productSelect.value) {
             quantityField.style.display = 'block';
@@ -38,6 +40,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    //the main logic block that calls both functions for the price changes
     productSelect.addEventListener("change", function() {
         toggleQuantityField();
         updateTotalCost();
@@ -45,6 +48,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     quantityInput.addEventListener("input", updateTotalCost);
     
+    //all the logic for the pre-fill button
     prefillButton.addEventListener("click", function() {
         productSelect.value = "Wobbly stickman";
         quantityInput.value = 3;
