@@ -1,48 +1,56 @@
-// In static/js/update.js
-document.addEventListener("DOMContentLoaded", () => {
-    const countdownElement = document.getElementById("countdown-timer");
-    if (!countdownElement) return;
+// Wait for the whole HTML page to load before running any script.
+document.addEventListener("DOMContentLoaded", function() {
 
-    const orderStatus = countdownElement.dataset.orderStatus;
-    const orderDateStr = countdownElement.dataset.orderDate;
-    const orderId = countdownElement.dataset.orderId; // We need the ID for the POST
-    
-    const SHIP_TIME_MINUTES = 3; // Let's use a 3-minute timer
+    let countdownElement = document.getElementById("countdown-timer");
+    if (countdownElement) {
 
-    if (orderStatus !== 'placed') {
-        countdownElement.textContent = `Order status: ${orderStatus}`;
-        return;
-    }
-    
-    const orderDate = new Date(orderDateStr);
-    const shipDate = new Date(orderDate.getTime() + SHIP_TIME_MINUTES * 60 * 1000);
-    let hasShipped = false;
+        //getting order info from the doc (referenced https://www.w3schools.com/jsref/met_element_getattribute.asp)
+        let orderStatus = countdownElement.getAttribute("data-order-status");
+        let orderDateStr = countdownElement.getAttribute("data-order-date");
+        let orderId = countdownElement.getAttribute("data-order-id");
+        let shipTimeInMinutes = 2; //default time to ship once an order is placed
 
-    const timerInterval = setInterval(() => {
-        const now = new Date();
-        const remainingTime = shipDate - now;
+        if (orderStatus !== "placed") {
+            let firstLetter = orderStatus.charAt(0).toUpperCase();
+            let restOfWord = orderStatus.slice(1);
+            countdownElement.textContent = "Order Status: " + firstLetter + restOfWord; //just show the status since the order status isn't "placed"
+        } else {
+            //start the timer
+            let orderDate = new Date(orderDateStr);
+            let shipDate = new Date(orderDate.getTime() + (shipTimeInMinutes * 60 * 1000));
+            let hasShipped = false;
 
-        if (remainingTime <= 0) {
-            countdownElement.textContent = "Order has shipped!";
-            clearInterval(timerInterval);
-            
-            // Send a POST request to the server to update the status
-            if (!hasShipped) {
-                hasShipped = true; // Prevents sending multiple requests
-                fetch('/ship_order', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                    body: `id=${orderId}`
-                }).then(response => {
-                    if (response.ok) console.log("Order status updated successfully.");
-                    else console.error("Failed to update order status.");
-                });
+            //this function runs every second to update the timer.
+            function updateTimer() {
+                let now = new Date();
+                let remainingTime = shipDate - now; //time left in ms.
+
+                if (remainingTime <= 0) {
+                    countdownElement.textContent = "Order has shipped!";
+                    clearInterval(timerInterval); //stop the timer
+                    if (hasShipped == false) {
+                        hasShipped = true;
+                        //Referenced https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST 
+                        fetch('/ship_order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'id=' + orderId
+                        }).then(function(response) {
+                            if (response.ok) {
+                                console.log("Order updated! Reloading the page.");
+                                // Reload the page to show the new "Shipped" status.
+                                window.location.reload(); 
+                            } else {
+                                console.log("Something went wrong while trying to update the order.");
+                            }
+                        });
+                    }
+                } else {
+                    let totalSecondsLeft = Math.floor(remainingTime / 1000);
+                    countdownElement.textContent = "Time remaining until order ships: " + Math.floor(totalSecondsLeft / 60) + "m " + totalSecondsLeft % 60 + "s"; //display the timer
+                }
             }
-            return;
+            let timerInterval = setInterval(updateTimer, 1000);  //the beating heart of it all
         }
-
-        const minutes = Math.floor(remainingTime / (1000 * 60));
-        const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
-        countdownElement.textContent = `Time remaining until order ships: ${minutes}m ${seconds}s`;
-    }, 1000);
+    }
 });

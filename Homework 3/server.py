@@ -8,7 +8,7 @@ orders = [
     #For the prompt, I created the first order by hand and asked "This is a dictionary to represent a fictional order for a website I'm building, can you give me more like this?"
     {
         "id": 0,
-        "status": "Completed",
+        "status": "Delivered",
         "cost": 19.79,
         "from": "The Smashing Pumpkins",
         "address": "Billy Corgan<br>123 Easy Street<br>Saint Paul, MN 55123",
@@ -19,7 +19,7 @@ orders = [
     },
     {
         "id": 1,
-        "status": "Out for delivery",
+        "status": "Shipped",
         "cost": 42.50,
         "from": "Radiohead",
         "address": "Thom Yorke<br>456 Crescent Ave<br>Brooklyn, NY 11215",
@@ -30,7 +30,7 @@ orders = [
     },
     {
         "id": 2,
-        "status": "Placed",
+        "status": "Delivered",
         "cost": 27.95,
         "from": "Nirvana",
         "address": "Kurt Cobain<br>789 River Rd<br>Seattle, WA 98109",
@@ -41,7 +41,7 @@ orders = [
     },
     {
         "id": 3,
-        "status": "Completed",
+        "status": "Delivered",
         "cost": 8.99,
         "from": "Fleetwood Mac",
         "address": "Stevie Nicks<br>1550 Golden Rd<br>Los Angeles, CA 90026",
@@ -52,7 +52,7 @@ orders = [
     },
     {
         "id": 4,
-        "status": "Placed",
+        "status": "Shipped",
         "cost": 65.40,
         "from": "Red Hot Chili Peppers",
         "address": "Anthony Kiedis<br>900 Venice Blvd<br>Venice, CA 90291",
@@ -63,7 +63,7 @@ orders = [
     },
     {
         "id": 5,
-        "status": "Out for delivery",
+        "status": "Cancelled",
         "cost": 12.35,
         "from": "The Black Keys",
         "address": "Dan Auerbach<br>4131 Rubber Factory Ln<br>Akron, OH 44304",
@@ -74,7 +74,7 @@ orders = [
     },
     {
         "id": 6,
-        "status": "Completed",
+        "status": "Shipped",
         "cost": 33.00,
         "from": "The White Stripes",
         "address": "Jack White<br>777 Cass Corridor St<br>Detroit, MI 48201",
@@ -85,7 +85,7 @@ orders = [
     },
     {
         "id": 7,
-        "status": "Placed",
+        "status": "Cancelled",
         "cost": 14.55,
         "from": "Tame Impala",
         "address": "Kevin Parker<br>200 Lonerism Way<br>Perth, WA 6000, Australia",
@@ -106,21 +106,16 @@ prices = {
 
 def ship_order(params: dict) -> bool:
     """Finds an order and marks it as shipped. Returns True on success."""
-    try:
-        order_id = int(params.get("id", -1))
-        for order in orders:
-            if order["id"] == order_id:
-                # Only ship orders that are currently "Placed"
-                if order["status"] == "Placed":
-                    order["status"] = "Out for delivery"
-                    print(f"Order {order_id} has been shipped.")
-                    return True
-                else:
-                    print(f"Order {order_id} could not be shipped (status: {order['status']}).")
-                    return False
-        return False # Order not found
-    except (ValueError, TypeError):
-        return False
+    order_id = int(params.get("id", -1))
+    for order in orders:
+        if order["id"] == order_id:
+            #only ship orders that are currently "Placed"
+            if order["status"] == "Placed":
+                order["status"] = "Shipped"
+                return True
+            else:
+                return False
+    return False #order not found
     
 #untouched from project 2
 def format_one_order(order):
@@ -191,29 +186,26 @@ def parse_query_parameters(response):
         
     return pairs
 
-
-#TODO: Add the separate box to show the time remaining on the order.
-# In server.py
-
 def render_tracking(order):
-    #keys will become the row headers
+    # keys will become the row headers
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
-    order_status = str(order.get("shipping", "Error: order doesn't have status"))
-    address_for_textarea = escape_html(order["address"].replace("<br>", "\n"))    #replace <br> with newlines and escape the text for security.
+    order_status = str(order.get("status", "Error: order doesn't have status")).lower()
+    
+    # These are correct as they are.
+    address_for_textarea = escape_html(order["address"].replace("<br>", "\n"))
     notes_for_textarea = escape_html(order["notes"].replace("<br>", "\n"))
 
-    #fill out radio buttons to have proper default value
+    # fill out radio buttons to have proper default value
     flat_checked, ground_checked, expedited_checked = "", "", ""
-    match order_status:
+    # Match against the actual shipping field
+    match order.get("shipping"):
         case "Flat rate":
             flat_checked = "checked"
         case "Ground":
             ground_checked = "checked"
         case "Expedited":
             expedited_checked = "checked"
-        case _:
-            flat_checked = "checked"
 
     result = f"""
 <!DOCTYPE html>
@@ -239,12 +231,14 @@ def render_tracking(order):
         <div class="flex-container" id="body-text">
             <div class="flex-container" id="shipping-status">"""
     match order_status:
-        case "completed":
-            result += "<p>Your order has been completed! Thank you for shopping with us and be sure to Stick it to the man!</p>"
-        case "out for delivery":
-            result += "<p>Your order is currently shipping</p>"
+        case "delivered":
+            result += "<p>Your order has been completed!</p>"
+        case "shipped":
+            result += "<p>Your order is currently shipping.</p>"
         case "placed":
-            result += "<p>Your order has been placed and is processing</p>"
+            result += "<p>Your order has been placed and is processing.</p>"
+        case "cancelled":
+            result += "<p>This order has been cancelled.</p>"
     result += """
             </div>
     
@@ -255,13 +249,13 @@ def render_tracking(order):
         display_value = ""
         if key == "cost":
             display_value = typeset_dollars(value)
-        elif key == "address":
-            display_value = str(value) #<br> tags were breaking stuff
+        elif key == "notes" and order[key] == "":
+            display_value = "N/A"
         elif isinstance(value, datetime):
-            #format datetime nicely
             display_value = escape_html(value.strftime('%Y-%m-%d %H:%M:%S'))
         else:
-            display_value = escape_html(str(value))
+            escaped_value = escape_html(str(value))
+            display_value = escaped_value.replace("&lt;br&gt;", "<br>")
         
         result += f"<tr><th>{escape_html(key.upper())}</th><td>{display_value}</td></tr>"
 
@@ -280,7 +274,7 @@ def render_tracking(order):
                    Time remaining until order ships: Calculating...
                 </p>
             </div>"""
-    if order["status"] not in ["Cancelled", "Completed"]: #Conditionally removing the update/cancel buttons
+    if order["status"] == "Placed":
         result += f"""
             
             <form method="POST" action="/update_shipping" class="flex-container" id="shipping-status" style="flex-direction: column; padding: 10px;">
@@ -300,21 +294,20 @@ def render_tracking(order):
 
                 <label for="delivery-notes" style="padding:10px">Delivery Notes: </label>
                 <br>
-                <textarea id="delivery-notes" name="notes" required rows="4" cols="50">{notes_for_textarea}</textarea>
+                <textarea id="delivery-notes" name="notes" rows="4" cols="50">{notes_for_textarea}</textarea>
 
-                <button type="submit" class="search-button">Update Order</button>
+                <button type="submit">Update Order</button>
                 <input type="text" name="id" value="{order_id}" hidden>
             </form>
     
-            <form method="POST" action="/cancel_order">
-                <button type="submit" class="search-button" style="background-color:red">Cancel Order</button>
+            <form method="POST" action="/cancel_order" style="border-width:0px;">
+                <button type="submit" class="cancel-button">Cancel Order</button>
                 <input type="text" name="id" value="{order_id}" hidden>
             </form>"""
         
     result +="""
         </div>
     </div>
-    
     <script src="/static/js/update.js"></script>
 </body>
 </html>
@@ -379,14 +372,14 @@ def render_orders(order_filters: dict[str, str]):
             <label for="status">Status:</label>
             <select id="status" name="status">
                 <option value="" {'selected' if not status_raw else ''}>Any</option>
-                <option value="Completed" {'selected' if status == 'completed' else ''}>Completed</option>
-                <option value="Out for Delivery" {'selected' if status == 'out for delivery' else ''}>Out for Delivery</option>
+                <option value="Delivered" {'selected' if status == 'delivered' else ''}>Delivered</option>
+                <option value="Shipped" {'selected' if status == 'shipped' else ''}>Shipped</option>
                 <option value="Placed" {'selected' if status == 'placed' else ''}>Placed</option>
                 <option value="Cancelled" {'selected' if status == 'cancelled' else ''}>Cancelled</option>
             </select>
         </div>
 
-        <button type="submit" class="search-button">Search</button>
+        <button type="submit">Search</button>
     </form>
 
     <div class="flex-container" id="shipping-status">"""
@@ -489,7 +482,6 @@ def render_order_success(order_id):
 </html>
 """, "text/html", 201
 
-#should be ok?
 def add_new_order(params: dict) -> int | None:
     required_fields = ["product", "order_quantity", "sender", "recipient", "shipping_option"]
     for field in required_fields:
@@ -525,13 +517,13 @@ def add_new_order(params: dict) -> int | None:
     }
 
     orders.append(new_order)
-    # print(f"added new order with ID: {new_id}")
     return new_id
+
 
 def cancel_order(params):
     for order in orders:
         if order["id"] == int(params["id"]):
-            if order["status"] not in ["Completed", "Cancelled"]:
+            if order["status"] not in ["Shipped", "Delivered", "Cancelled"]:
                 order["status"] = "Cancelled"
                 return True
             else:
@@ -544,10 +536,12 @@ def update_shipping_info(params):
         if order["id"] == int(params["id"]):
             if order["status"] not in ["Completed", "Cancelled"]:
                 order["shipping"] = params["shipping"]
-                if params["notes"]: #update notes if they're edited
-                    order["notes"] = params["notes"] 
+                if params["address"]: #update address if provided, converting newlines to <br> tags
+                    order["address"] = params["address"].replace("\n", "<br>")
+                if params["notes"]: #same story with notes
+                    order["notes"] = params["notes"].replace("\n", "<br>")
                 return True
-    return False
+    return False #order with input params was not found
 
 
 def server_GET(url: str) -> tuple[str | bytes, str, int]:
@@ -609,8 +603,11 @@ def server_GET(url: str) -> tuple[str | bytes, str, int]:
             return open(filename, "rb").read(), "text/css", 200
         
         #js
-        case "/js/update.js":
-            return open("static/js/update.js").read(), "application/javascript", 200
+        case "/static/js/update.js":
+            return open("static/js/update.js").read(), "text/javascript", 200
+        
+        case "/static/js/order.js":
+            return open("static/js/order.js").read(), "text/javascript", 200
 
         #404 page
         case _:
@@ -640,6 +637,7 @@ def server_POST(url: str, body: str) -> tuple[str | bytes, str, int]:
             else:
                 return open("static/html/order_fail.html").read(), "text/html", 400
             
+        #this function is called by the update file
         case "/ship_order":
             params = parse_query_parameters("?" + body)
             if ship_order(params):

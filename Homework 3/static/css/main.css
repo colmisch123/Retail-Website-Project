@@ -236,9 +236,9 @@ input[type="text"], select {
     width: fit-content;
 }
 
-button[type="submit"] {
+button {
     height: 40px; 
-    background-color: #71c48a;
+    background-color: #74ff9e;
     color: white;
     font-size: 16px; 
     padding: 10px; 
@@ -248,8 +248,17 @@ button[type="submit"] {
     transition: background-color 0.5s ease;
 }
 
-button[type="submit"]:hover {
+button:hover {
     background-color: #03e848;
+    transition: background-color 0.5s ease;
+}
+
+button.cancel-button {
+    background-color: #ffa3a3;
+}
+
+button.cancel-button:hover {
+    background-color: #ff0000;
     transition: background-color 0.5s ease;
 }
 

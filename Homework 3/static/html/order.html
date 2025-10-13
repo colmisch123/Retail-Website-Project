@@ -4,6 +4,7 @@
         <title>Ordering Form</title>
         <meta charset="UTF-8">
         <link rel="stylesheet" href="/static/css/main.css">
+        <script src="/static/js/order.js"></script>
     </head>
     <body>
         <ul class="nav-bar">
@@ -20,10 +21,11 @@
             <div class="form-group">
                 <label for="product">Select a product:</label>
                 <select id="product" name="product" required>
+                    <!--Honestly I wish I could implement this in a more dynamic way because adding/removing items is a pain in the butt-->
                     <option value="">None selected</option>
-                    <option value="Angry stickman">Angry stickman</option>
-                    <option value="Wobbly stickman">Wobbly stickman</option>
-                    <option value="Pleased stickman">Pleased stickman</option>
+                    <option value="Angry stickman">Angry stickman - $5.99</option>
+                    <option value="Wobbly stickman">Wobbly stickman - $7.00</option>
+                    <option value="Pleased stickman">Pleased stickman - $6.25</option>
                 </select>
             </div>
 
@@ -67,6 +69,8 @@
 
             <div class="form-group">
                 <button type="submit" class="search-button">Submit</button>
+
+                <button type="button" id="prefill_button">Prefill Form</button>
             </div>
         </form>
 
