@@ -4,13 +4,13 @@ This repo serves as an archive of all iterations of my website project. The webs
 
 ## Versions
 
-Version 1 of the project involves a website backend running in Python to navigate between the pages, and the pages themselves are constructed with simple HTML. 
+**Version 1** of the project involves a website backend running in Python to navigate between the pages, and the pages themselves are constructed with simple HTML. 
 
-Version 2 involved implementing CSS and dynamic HTML through multi-line python strings, as well as some basic images.
+**Version 2** involved implementing CSS and dynamic HTML through multi-line python strings, as well as some basic images.
 
-Version 3 allows users to place new orders, as well as update and cancel them. It also introduces the usage of Javascript to make pages more dynamic, and POST requests to update orders in the backend.
+**Version 3** allows users to place new orders, as well as update and cancel them. It also introduces the usage of Javascript to make pages more dynamic, and HTTP POST requests to update orders in the backend.
 
-Version 4: Current work in progress and unpublished.
+**Version 4**: Current work in progress and unpublished.
 
 # Running
 To run versions 1-4, simply run the terminal command ```python server.py``` while your terminal is in the respective version directory.
