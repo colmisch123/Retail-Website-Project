@@ -95,16 +95,12 @@ orders = [
     },
 ]
 
-#this is purely for my reference
+#constant values i either check against or reference a lot
 shipping_statuses = {"Delivered", "Placed", "Shipped", "Cancelled"}
-
-#this is purely for my reference
-prices = {
-    "Angry stickman": 5.99,
-    "Wobbly stickman": 7.50,
-    "Pleased stickman": 6.25,
-}
-
+valid_shipping_options = {"Flat rate", "Ground", "Expedited"}
+prices = {"Angry stickman": 5.99, "Wobbly stickman": 7.50, "Pleased stickman": 6.25}
+max_name_length = 64
+max_address_length = 1024
 
 def ship_order(params: dict) -> bool:
     order_id_str = params.get("id", "")
@@ -236,10 +232,7 @@ def render_tracking(order):
                 <button type="submit">Update Order</button>
                 <input type="text" name="id" value="{order_id}" hidden>
             </form>
-            <form method="POST" action="/cancel_order" style="border-width:0px;">
-                <button type="submit" class="cancel-button">Cancel Order</button>
-                <input type="text" name="id" value="{order_id}" hidden>
-            </form>"""
+            <button type="button" id="cancel-order-button" class="cancel-button">Cancel Order</button>"""
     result +="""
         </div>
     </div>
@@ -338,7 +331,9 @@ def render_orders(order_filters: dict[str, str]):
                         sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
                         if status_match and sender_match:
                             # If a single order is found, render its tracking page directly
-                            return render_tracking(order) 
+                            html_body = render_tracking(order)
+                            headers = {"Content-Type": "text/html; charset=utf-8"}
+                            return html_body, 200, headers
                 result += "<tr><td colspan='100%'>No order found with that ID matching all filters.</td></tr>"
         except ValueError:
             result += "<tr><td colspan='100%'>Invalid order number.</td></tr>"
@@ -502,13 +497,11 @@ def unescape_url(url_str: str) -> str:
     return urllib.parse.unquote_plus(url_str)
 
 
-# NOTE This is not robust enough to handle all inputs, you will need to improve
-# it.
 def parse_query_parameters(query_string: str) -> dict[str, str]:
     parsed_params: dict[str, str] = {}
     if not query_string:
         return parsed_params #return empty if query string is empty
-    pairs = query_string.split("&") # Split by '&' first
+    pairs = query_string.split("&")
     for pair in pairs:
         if not pair:
             continue #ignore empty parts (ex: a=1&&b=2)
@@ -530,49 +523,114 @@ def typeset_dollars(number: float) -> str:
     return f"${number:.2f}"
 
 
-# The method signature is a bit "hairy", but don't stress it -- just check the documentation below.
-# NOTE some people's computers don't like the type hints. If so replace below with simply: `def server(method, url, body, headers)`
-# The type hints are fully optional in python.
-def server(
-    request_method: str,
-    url: str,
-    request_body: str | None,
-    request_headers: dict[str, str],
-) -> tuple[str | bytes, int, dict[str, str]]:
+# --- Constants for Validation ---
+
+
+
+# --- New Validation and Order Creation Function ---
+def process_api_order(data: dict) -> tuple[bool, int | list[str]]:
     """
-    `method` will be the HTTP method used, for our server that's GET, POST, DELETE, and maybe PUT
-    `url` is the partial url, just like seen in previous assignments
-    `body` will either be the python special `None` (if the body wouldn't be sent (such as in a GET request))
-         or the body will be a string-parsed version of what data was sent.
-    headers will be a python dictionary containing all sent headers.
-
-    This function returns 3 things:
-    The response body (a string containing text, or binary data)
-    The response code (200 = ok, 404=not found, etc.)
-    A _dictionary_ of headers. This should always contain Content-Type as seen in the example below.
+    Validates JSON order data and adds the order if valid.
+    Returns (True, new_order_id) on success.
+    Returns (False, list_of_errors) on failure.
     """
-    # feel free to delete anything below this, so long as the function behaves right it's cool.
-    # That said, I figured we could give you some starter code...
+    errors = []
+    required_fields = ["product", "from_name", "quantity", "address", "shipping"]
+    
+    # 1. Check for missing fields
+    for field in required_fields:
+        if field not in data or not data[field]: # Check if field exists and is not empty
+             errors.append(f"Missing required field: {field}")
+             
+    if errors: # If any fields are missing, stop validation here
+        return False, errors
 
-    response_body = None
-    status = 200
-    response_headers = {}
+    # 2. Field-specific validations (only if all fields are present)
+    product = data["product"]
+    from_name = data["from_name"]
+    quantity_raw = data.get("quantity") # Use .get() for safer access
+    address = data["address"]
+    shipping = data["shipping"]
 
-    # Parse URL -- this is probably the best way to do it. Delete if you want.
-    parameters = None
-    if "?" in url:
-        url, parameters = url.split("?", 1)
+    # Validate quantity
+    quantity = 0 # Default value
+    if isinstance(quantity_raw, int) and quantity_raw > 0:
+        quantity = quantity_raw
+    elif isinstance(quantity_raw, str) and quantity_raw.isdigit() and int(quantity_raw) > 0:
+         quantity = int(quantity_raw) # Allow numeric strings
+    else:
+        errors.append("Quantity must be a positive integer")
 
-    # To help you get rolling... the 404 page will probably look like this.
-    # Notice how we have to be explicit that "text/html" should be the value for
-    # header: "Content-Type" now instead of being returned directly.
-    # I am sorry that you're going to have to do a bunch of boring refactoring.
-    response_body = open("static/html/404.html").read()
-    status = 404
-    response_headers["Content-Type"] = "text/html; charset=utf-8"
+    # Validate product
+    if product not in prices:
+        errors.append("Unrecognized product")
 
-    return response_body, status, response_headers
+    # Validate shipping
+    if shipping not in valid_shipping_options:
+        errors.append("Invalid shipping method")
 
+    # Validate lengths
+    if len(from_name) >= max_name_length:
+        errors.append(f"Sender name must be less than {max_name_length} characters")
+    if len(address) >= max_address_length:
+        errors.append(f"Address must be less than {max_address_length} characters")
+
+    # If any errors occurred during validation, return them
+    if errors:
+        return False, errors
+
+    # 3. Validation passed, create the order (similar to add_new_order)
+    new_id = len(orders) 
+    order_date = datetime.now(timezone.utc)
+    # ship_by_date = order_date + timedelta(minutes=SHIP_TIME_MINUTES) # If using ship_by_date
+
+    new_order = {
+        "id": new_id,
+        "status": "Placed",
+        "cost": prices[product] * quantity,
+        "from": from_name,  # Use from_name from JSON
+        "address": address.replace("\n", "<br>"), # Store address with <br>
+        "product": f"{quantity}x {product.capitalize()}",
+        "notes": data.get("notes", "N/A"), # Get notes if provided
+        "order date": order_date,
+        # "ship_by_date": ship_by_date, # If using ship_by_date
+        "shipping": shipping
+    }
+    orders.append(new_order)
+    print(f"API added new order with ID: {new_id}")
+    return True, new_id # Return success and the new ID
+
+
+def cancel_order_api(order_id_str: str) -> str:
+    """
+    Attempts to cancel an order based on its ID string.
+    Returns:
+        "success" if cancelled successfully.
+        "not_found" if the order ID is invalid or doesn't exist.
+        "not_cancellable" if the order exists but its status prevents cancellation.
+    """
+    if not order_id_str.isdigit():
+        return "not_found" # Invalid ID format
+
+    order_id = int(order_id_str)
+    
+    for order in orders:
+        if order["id"] == order_id:
+            # Check if cancellable *after* finding the order
+            # Assuming 'Delivered' implies completed/shipped
+            if order["status"] not in ["Completed", "Cancelled", "Delivered", "Shipped"]: 
+                order["status"] = "Cancelled"
+                print(f"API cancelled order ID: {order_id}")
+                return "success"
+            else:
+                print(f"API: Order {order_id} found but cannot be cancelled (status: {order['status']})")
+                return "not_cancellable" # Found the order but it can't be cancelled
+                
+    print(f"API: Order ID {order_id} not found for cancellation.")
+    return "not_found" # No order with that valid ID was found
+
+
+# --- Update the main `server` function ---
 def server(
     request_method: str,
     url: str,
@@ -582,144 +640,212 @@ def server(
     """
     Handles all HTTP requests and routes them to the correct logic.
     """
-    
-    #set default headers
     response_headers = {"Content-Type": "text/html; charset=utf-8"}
     
-    #GET requests
-    if request_method == "GET":
-        query_pos = url.find("?")
-        if query_pos != -1:
-            query_string = url[query_pos:]
-            order_filters = parse_query_parameters(query_string)
-            path = url[:query_pos]
-        else:
-            order_filters = {}
-            path = url
+    try: # Wrap main logic in try/except for robustness
+        # --- HANDLE GET REQUESTS ---
+        if request_method == "GET":
+            # (Your existing GET routing logic remains unchanged)
+            # ... make sure it includes routes for /order, /static/js/order.js etc. ...
+            query_pos = url.find("?")
+            if query_pos != -1:
+                query_string = url[query_pos:]
+                order_filters = parse_query_parameters(query_string[1:]) # Pass without '?'
+                path = url[:query_pos]
+            else:
+                order_filters = {}
+                path = url
+            
+            match path:
+                case "/" | "/about":
+                    response_body = open("static/html/about.html", encoding="utf-8").read()
+                    return response_body, 200, response_headers
+                
+                case "/orders" | "/admin/orders":
+                    response_body = render_orders(order_filters)
+                    # Check if render_orders returned the tracking page tuple directly
+                    if isinstance(response_body, tuple):
+                        return response_body # Pass the tuple through
+                    else:
+                        # Otherwise, wrap the orders list HTML in the standard response
+                        return response_body, 200, response_headers
+
+                case p if p.startswith("/tracking/"):
+                    parts = p.split('/')
+                    if len(parts) >= 3 and parts[-1].isdigit():
+                        order_id = int(parts[-1])
+                        for order in orders:
+                            if order["id"] == order_id:
+                                response_body = render_tracking(order)
+                                return response_body, 200, response_headers
+                    pass 
+
+                case "/order": # Serve the static HTML form
+                    response_body = open("static/html/order.html", encoding="utf-8").read()
+                    return response_body, 200, response_headers
+
+                # Images, CSS, JS... (Ensure these are correct)
+                case "/images/main.png" | "/images/main":
+                    response_body = open("static/images/main.png", "rb").read()
+                    response_headers["Content-Type"] = "image/png"
+                    return response_body, 200, response_headers
+                case "/images/alicejohnson.jpg":
+                    response_body = open("static/images/alicejohnson.jpg", "rb").read()
+                    response_headers["Content-Type"] = "image/jpeg"
+                    return response_body, 200, response_headers
+                # ... other images ...
+                case "/main.css":
+                    response_body = open("static/css/main.css", "rb").read()
+                    response_headers["Content-Type"] = "text/css"
+                    return response_body, 200, response_headers
+                case p if p.endswith(".css"):
+                    filename = p.lstrip("/")
+                    response_body = open(filename, "rb").read()
+                    response_headers["Content-Type"] = "text/css"
+                    return response_body, 200, response_headers
+                case "/static/js/update.js":
+                    response_body = open("static/js/update.js").read()
+                    response_headers["Content-Type"] = "application/javascript"
+                    return response_body, 200, response_headers
+                case "/static/js/order.js":
+                    response_body = open("static/js/order.js").read()
+                    response_headers["Content-Type"] = "application/javascript"
+                    return response_body, 200, response_headers
+                case _:
+                    pass
         
-        #routing logic copied from old server_GET
-        match path:
-            case "/" | "/about":
-                response_body = open("static/html/about.html", encoding="utf-8").read()
-                return response_body, 200, response_headers
+        # --- HANDLE POST REQUESTS ---
+        elif request_method == "POST":
+            if url == "/api/order":
+                # 1. Check Content-Type header
+                content_type = request_headers.get("Content-Type", "").lower()
+                if "application/json" not in content_type:
+                    response_body = json.dumps({"status": "error", "errors": ["Request must be application/json"]})
+                    response_headers["Content-Type"] = "application/json; charset=utf-8"
+                    return response_body, 400, response_headers
+                
+                # 2. Parse JSON body
+                try:
+                    data = json.loads(request_body or "{}")
+                except json.JSONDecodeError:
+                    response_body = json.dumps({"status": "error", "errors": ["Invalid JSON format"]})
+                    response_headers["Content-Type"] = "application/json; charset=utf-8"
+                    return response_body, 400, response_headers
 
-            case "/orders" | "/admin/orders":
-                response_body = render_orders(order_filters)
-                return response_body, 200, response_headers
-            
-            #this loop is weird but its how I handle geting specific tracking
-            #pages because the autograder on homework 3 required it
-            case p if p.startswith("/tracking/"):
-                parts = p.split('/')
-                if len(parts) >= 3 and parts[-1].isdigit():
-                    order_id = int(parts[-1])
-                    for order in orders:
-                        if order["id"] == order_id:
-                            response_body = render_tracking(order)
+                # Map form names to expected JSON names
+                api_data = {
+                    "product": data.get("product"),
+                    "from_name": data.get("from_name"), # Matches JSON example
+                    "quantity": data.get("quantity"),
+                    "address": data.get("address"),     # Matches JSON example
+                    "shipping": data.get("shipping"),   # Matches JSON example
+                    "notes": data.get("notes")          # Include notes if sent
+                }
+                
+                # 3. Validate and process
+                success, result = process_api_order(api_data)
+                
+                response_headers["Content-Type"] = "application/json; charset=utf-8"
+                if success:
+                    order_id = result
+                    status_code = 201
+                    response_data = {"status": "success", "order_id": order_id}
+                else: # Handle errors
+                    errors = result
+                    # --- START FIX for 413 ---
+                    length_errors = [err for err in errors if "characters" in err]
+                    other_errors = [err for err in errors if "characters" not in err]
+
+                    if length_errors:
+                        # Prioritize 413 if there's a length error
+                        status_code = 413
+                        # Optionally, only return length errors with 413, or all errors
+                        response_data = {"status": "error", "errors": length_errors} 
+                        # Or use this line to return all errors even with 413:
+                        # response_data = {"status": "error", "errors": errors} 
+                    else:
+                        # If no length errors, it must be other validation errors -> 400
+                        status_code = 400
+                        response_data = {"status": "error", "errors": other_errors}
+
+                response_body = json.dumps(response_data)
+                return response_body, status_code, response_headers
+
+            # Keep other POST routes (/ship_order, /cancel_order, /update_shipping)
+            else:
+                 params = parse_query_parameters("?" + (request_body or ""))
+                 match url:
+                    case "/ship_order":
+                         if ship_order(params):
+                              response_headers["Content-Type"] = "text/plain; charset=utf-8"
+                              return "Success", 200, response_headers
+                         else:
+                              response_headers["Content-Type"] = "text/plain; charset=utf-8"
+                              return "Failure", 400, response_headers
+                    
+                    case "/cancel_order":
+                        if cancel_order(params):
+                            response_body = render_order_success(params["id"])
                             return response_body, 200, response_headers
-                pass #Unrecognized order falls to 404 at the bottom
+                        else:
+                            response_body = open("static/html/order_fail.html").read()
+                            return response_body, 400, response_headers
 
-            case "/order" | "/admin/order":
-                response_body = open("static/html/order.html", encoding="utf-8").read()
-                return response_body, 200, response_headers
+                    case "/update_shipping":
+                        if update_shipping_info(params):
+                            response_body = render_order_success(params["id"])
+                            return response_body, 200, response_headers
+                        else:
+                            response_body = open("static/html/order_fail.html").read()
+                            return response_body, 400, response_headers
+                    
+                    case _:
+                         pass # Falls through to 404
 
-            #Images
-            case "/images/main.png" | "/images/main":
-                response_body = open("static/images/main.png", "rb").read()
-                response_headers["Content-Type"] = "image/png"
-                return response_body, 200, response_headers
-            case "/images/alicejohnson.jpg":
-                response_body = open("static/images/alicejohnson.jpg", "rb").read()
-                response_headers["Content-Type"] = "image/jpeg"
-                return response_body, 200, response_headers
-            case "/images/bobsmith.jpg":
-                response_body = open("static/images/bobsmith.jpg", "rb").read()
-                response_headers["Content-Type"] = "image/jpeg"
-                return response_body, 200, response_headers
-            case "/images/carollee.jpg":
-                response_body = open("static/images/carollee.jpg", "rb").read()
-                response_headers["Content-Type"] = "image/jpeg"
-                return response_body, 200, response_headers
-            case "/images/davidkim.jpg":
-                response_body = open("static/images/davidkim.jpg", "rb").read()
-                response_headers["Content-Type"] = "image/jpeg"
-                return response_body, 200, response_headers
+        # --- HANDLE DELETE REQUESTS (Placeholder for Task 4) ---
+        elif request_method == "DELETE":
+            if url == "/api/cancel_order":
+                # 1. Check Content-Type header
+                content_type = request_headers.get("Content-Type", "").lower()
+                if "application/json" not in content_type:
+                    # Return 400 Bad Request, body doesn't matter per instructions
+                    return "", 400, {"Content-Type": "text/plain"} 
 
-            #CSS
-            case "/main.css":
-                response_body = open("static/css/main.css", "rb").read()
-                response_headers["Content-Type"] = "text/css"
-                return response_body, 200, response_headers
-            case p if p.endswith(".css"):
-                filename = p.lstrip("/")
-                response_body = open(filename, "rb").read()
-                response_headers["Content-Type"] = "text/css"
-                return response_body, 200, response_headers
+                # 2. Parse JSON body
+                try:
+                    data = json.loads(request_body or "{}")
+                    order_id_to_cancel = str(data.get("order_id", "")) # Get ID as string
+                except (json.JSONDecodeError, AttributeError):
+                    # Invalid JSON or missing order_id key
+                    return "", 400, {"Content-Type": "text/plain"}
+
+                # 3. Call cancellation logic
+                result = cancel_order_api(order_id_to_cancel)
+
+                # 4. Return appropriate status code
+                if result == "success":
+                    # 204 No Content for successful deletion
+                    return "", 204, {} # No body, no specific headers needed
+                elif result == "not_found":
+                    # 404 Not Found if ID invalid or doesn't exist
+                    return "", 404, {"Content-Type": "text/plain"}
+                elif result == "not_cancellable":
+                    # 400 Bad Request if order status prevents cancellation
+                    return "", 400, {"Content-Type": "text/plain"}
             
-            #JavaScript
-            case "/static/js/update.js":
-                response_body = open("static/js/update.js").read()
-                response_headers["Content-Type"] = "application/javascript"
-                return response_body, 200, response_headers
-            case "/static/js/order.js":
-                response_body = open("static/js/order.js").read()
-                response_headers["Content-Type"] = "application/javascript"
-                return response_body, 200, response_headers
+            else:
+                 pass # Other DELETE requests fall through to 404
+        # Fall through to 404 if no route matched
+        
+    except FileNotFoundError:
+        response_body = open("static/html/404.html", encoding="utf-8").read()
+        return response_body, 404, response_headers
+    except Exception as e:
+        print(f"!!! SERVER ERROR: {e} !!!") # Log the error
+        response_body = "<h1>500 Internal Server Error</h1>"
+        return response_body, 500, response_headers
 
-            case _:
-                #Unrecognized path falls to 404 below
-                pass
-    
-    #POST requests
-    elif request_method == "POST":
-        params = parse_query_parameters("?" + (request_body or ""))        
-        match url:
-            case "/order":
-                new_order_id = add_new_order(params)
-                if new_order_id is not None:
-                    response_body = render_order_success(new_order_id)
-                    return response_body, 201, response_headers # 201 Created
-                else:
-                    response_body = open("static/html/order_fail.html").read()
-                    return response_body, 400, response_headers
-            
-            case "/ship_order":
-                if ship_order(params):
-                    response_headers["Content-Type"] = "text/plain; charset=utf-8"
-                    return "Success", 200, response_headers
-                else:
-                    response_headers["Content-Type"] = "text/plain; charset=utf-8"
-                    return "Failure", 400, response_headers
-            
-            case "/cancel_order":
-                if cancel_order(params):
-                    response_body = render_order_success(params["id"])
-                    return response_body, 200, response_headers
-                else:
-                    response_body = open("static/html/order_fail.html").read()
-                    return response_body, 400, response_headers
-            
-            case "/update_shipping":
-                if update_shipping_info(params):
-                    response_body = render_order_success(params["id"])
-                    return response_body, 200, response_headers
-                else:
-                    response_body = open("static/html/order_fail.html").read()
-                    return response_body, 400, response_headers
-            
-            case _:
-                #Unrecognized path falls to 404 below
-                pass
-
-    #DELETE requests
-    elif request_method == "DELETE":
-        # Example: Not implemented, return 405 Method Not Allowed
-        response_body = "<h1>405 Method Not Allowed</h1>"
-        return response_body, 405, response_headers
-    
-        # All unhandled methods or paths will fall through to the 404 below
-
-    #404 response if nothing is matched
+    # Default 404 if nothing else matched
     response_body = open("static/html/404.html", encoding="utf-8").read()
     return response_body, 404, response_headers
 
