@@ -67,7 +67,8 @@ document.addEventListener("DOMContentLoaded", function() {
             headers: {
                 'Content-Type': 'application/json' // Set header to application/json
             },
-            body: JSON.stringify(orderData) // Convert JS object to JSON string
+            body: JSON.stringify(orderData), // Convert JS object to JSON string
+            credentials: 'include'
         })
         .then(function(response) {
             // Check if response status is OK (2xx) or Created (201)

@@ -3,9 +3,16 @@
     <head>
         <title>404 page</title>
         <meta charset="UTF-8">
+        <link rel="stylesheet" href="/static/css/main.css">
     </head>
 
     <body>
-        <p>Error 404: File Not Found</p>
+        <ul class="nav-bar">
+            <li><a href="/about" class="nav-button">Home page</a></li>
+            <li><a href="/orders" class="nav-button">Orders (admin)</a></li>
+            <li><a href="/order" class="nav-button">Place Order</a></li>
+        </ul>
+
+        <p id="shipping-status" style="padding:10px 10px;">Error 404: File Not Found</p>
     </body>
 </html>

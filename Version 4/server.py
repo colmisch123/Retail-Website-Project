@@ -95,6 +95,23 @@ orders = [
     },
 ]
 
+
+#TODO: 
+
+# Tracking order page:
+# Javascript timer no longer functions when tracking a newly placed order
+# Update order page no longer updates address correctly (but updating notes and shipping type work fine I guess?)
+# Cancel order button currently does nothing
+
+# Order placing page:
+# Price no longer dynamically displays when placing an order (is the whole update.js function broken?)
+# Prefill form button broken when placing an order
+
+# Orders table page:
+# This is nitpicky, but the time placed shows a very precise time placed variable like 
+# 2025-10-26 07:50:29.225725+00:00
+# when it should match the others like 2025-10-11 08:05:00+00:00
+
 #constant values i either check against or reference a lot
 shipping_statuses = {"Delivered", "Placed", "Shipped", "Cancelled"}
 valid_shipping_options = {"Flat rate", "Ground", "Expedited"}
@@ -693,7 +710,18 @@ def server(
                     response_body = open("static/images/alicejohnson.jpg", "rb").read()
                     response_headers["Content-Type"] = "image/jpeg"
                     return response_body, 200, response_headers
-                # ... other images ...
+                case "/images/bobsmith.jpg":
+                    response_body = open("static/images/bobsmith.jpg", "rb").read()
+                    response_headers["Content-Type"] = "image/jpeg"
+                    return response_body, 200, response_headers
+                case "/images/carollee.jpg":
+                    response_body = open("static/images/carollee.jpg", "rb").read()
+                    response_headers["Content-Type"] = "image/jpeg"
+                    return response_body, 200, response_headers
+                case "/images/davidkim.jpg":
+                    response_body = open("static/images/davidkim.jpg", "rb").read()
+                    response_headers["Content-Type"] = "image/jpeg"
+                    return response_body, 200, response_headers
                 case "/main.css":
                     response_body = open("static/css/main.css", "rb").read()
                     response_headers["Content-Type"] = "text/css"
@@ -750,9 +778,16 @@ def server(
                     order_id = result
                     status_code = 201
                     response_data = {"status": "success", "order_id": order_id}
+                    customer_name = api_data.get("from_name", "")
+                    if customer_name:
+                         # Sanitize name (remove non-alphanumeric as hinted)
+                         sanitized_name = re.sub(r'[^a-zA-Z0-9]', '', customer_name)
+                         # Set the cookie header
+                         # Path=/ makes it available on all pages
+                         # Max-Age=31536000 sets it for 1 year
+                         response_headers["Set-Cookie"] = f"customer_name={sanitized_name}; Path=/; Max-Age=31536000" 
                 else: # Handle errors
                     errors = result
-                    # --- START FIX for 413 ---
                     length_errors = [err for err in errors if "characters" in err]
                     other_errors = [err for err in errors if "characters" not in err]
 
