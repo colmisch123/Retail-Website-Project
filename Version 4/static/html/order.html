@@ -57,7 +57,7 @@
             <!--Sender box-->
             <div class="form-group">
                 <label for="sender">From: </label><br>
-                <textarea id="sender" name="sender" placeholder="Please input sender name..." required rows="4" cols="50"></textarea>
+                <textarea id="sender" name="sender" placeholder="Please input sender name..." required rows="4" cols="50">customer_name_placeholder</textarea> <!--In theory the placeholder text will be overwritten by the Python-->
             </div>
             
             <!--Recipient/Address text box-->
@@ -74,9 +74,12 @@
                 <textarea id="notes" name="notes" placeholder="Any special requests?" rows="4" cols="50"></textarea>
             </div>
 
+            <div class="form-group" style="flex-direction: row; align-items: center;">
+                 <input type="checkbox" id="remember_me" name="remember_me" value="true" checked>
+                 <label for="remember_me" style="margin-left: 5px; font-weight: normal;">Remember me?</label>
+            </div>
             <div class="form-group">
                 <button type="submit">Submit</button>
-
                 <button type="button" id="prefill_button">Prefill Form</button>
             </div>
         </form>

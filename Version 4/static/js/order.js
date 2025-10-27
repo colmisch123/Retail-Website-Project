@@ -28,8 +28,8 @@ document.addEventListener("DOMContentLoaded", function() {
         var quantity = parseInt(quantityInput.value);
 
         if (selectedProduct && quantity > 0 && PRICES[selectedProduct]) {
-            var total = (PRICES[selectedProduct] * quantity).toFixed(2);
-            totalCostDisplay.textContent = "Total Cost: $" + total;
+            var total = (PRICES[selectedProduct] * quantity);
+            totalCostDisplay.textContent = "Total Cost: $" + total.toFixed(2); //referenced https://www.w3schools.com/jsref/jsref_tofixed.asp
             totalCostDisplay.style.display = 'block';
         } else {
             totalCostDisplay.style.display = 'none';
@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function toggleQuantityField() {
         if (productSelect.value) {
-            quantityField.style.display = 'block'; // Or 'flex' if it's a flex item
+            quantityField.style.display = 'block';
         } else {
             quantityField.style.display = 'none';
             quantityInput.value = '';
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // --- Event Listeners ---
+    //Block for dynamic price display
     productSelect.addEventListener("change", function() {
         toggleQuantityField();
         updateTotalCost();
@@ -68,11 +68,12 @@ document.addEventListener("DOMContentLoaded", function() {
         updateTotalCost();
     });
 
-    // --- Fetch Logic ---
+    //fetch Logic
     theForm.addEventListener("submit", function(event) {
         event.preventDefault(); 
         messageArea.textContent = ""; 
         messageArea.style.color = "black"; 
+        var rememberMeCheckbox = document.getElementById("remember_me");
 
         var selectedShipping = "";
         if (flatRateRadio.checked) selectedShipping = flatRateRadio.value;
@@ -85,32 +86,42 @@ document.addEventListener("DOMContentLoaded", function() {
             from_name: senderText.value, 
             address: recipientText.value, 
             shipping: selectedShipping,
-            notes: notesText.value
+            notes: notesText.value,
+            remember_me: rememberMeCheckbox.checked
         };
 
         fetch('/api/order', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderData),
-            credentials: 'omit' // Explicitly omit credentials if not needed yet for cookies
+            credentials: 'include'
         })
         .then(function(response) {
-             // Try to parse JSON even if status is not ok, for error messages
-             return response.json().then(function(data){
-                 return { ok: response.ok, status: response.status, data: data }; 
-             }).catch(function(jsonError){
-                 // Handle cases where response is not JSON (e.g., server crash -> HTML error)
-                 console.error("JSON parsing error:", jsonError);
-                 return { ok: false, status: response.status, data: { errors: ["Server returned a non-JSON response."] } };
-             });
+            // Try to parse JSON even if status is not ok, for error messages
+            return response.json().then(function(data){
+                return { ok: response.ok, status: response.status, data: data }; 
+            }).catch(function(jsonError){
+                // Handle cases where response is not JSON (e.g., server crash -> HTML error)
+                console.error("JSON parsing error:", jsonError);
+                return { ok: false, status: response.status, data: { errors: ["Server returned a non-JSON response."] } };
+            });
         })
         .then(function(result) {
             if (result.ok) { 
-                 var orderId = result.data.order_id;
-                 messageArea.innerHTML = 'Order placed successfully! Your Order ID is: <strong>' + orderId + '</strong>. ' +
-                                         '<a href="/tracking/' + orderId + '">Track your order</a>';
-                 messageArea.style.color = "green";
-                 theForm.reset(); 
+                var orderId = result.data.order_id;
+                messageArea.innerHTML = 'Order placed successfully! Your Order ID is: <strong>' + orderId + '</strong>. ' + '<a href="/tracking/' + orderId + '">Track your order</a>';
+                messageArea.style.color = "green";
+
+                var submittedName = senderText.value; 
+                var rememberMe = rememberMeCheckbox.checked; // Get checkbox state
+
+                theForm.reset(); //clearing the form
+
+                // If remember was checked, manually put the submitted name back
+                if (rememberMe) {
+                    senderText.value = submittedName;
+                }
+                    
                  toggleQuantityField(); 
                  updateTotalCost(); 
             } else {
@@ -120,14 +131,8 @@ document.addEventListener("DOMContentLoaded", function() {
                  messageArea.style.color = "red";
                  console.error("Server returned error:", result.status, result.data.errors);
             }
-        })
-        .catch(function(error) {
-            messageArea.textContent = "An network error occurred: " + error;
-            messageArea.style.color = "red";
-            console.error("Fetch network error:", error);
         });
     });
 
-    // --- Initial setup ---
     toggleQuantityField(); // Hide quantity initially
-}); // REMOVED extra brace here
+});

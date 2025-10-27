@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 
 # If you need to add anything above here you should check with course staff first.
+
 orders = [
     {
         "id": 0,
@@ -95,18 +96,18 @@ orders = [
     },
 ]
 
-
 #TODO: 
 
-# Tracking order page:
-# Cancel order button is too wide and needs some sort of visual feedback to indicate an order has been cancelled (JS DOM update the page, go to order update page, or forced refresh...)
-
 # Orders table page:
+# Orders only update from "shipped" to "placed" if you go to their tracking page. Note that this doesn't allow any weird editing/cancelling
+# but it should match the behavior of other orders when they "ship." I think the functionality to do this is actually broken in the JS right now though, (currently requires refresh) 
+# so if that gets fixed it'll probably fix this edge case. 
+
 # This is nitpicky, but the time placed shows a very precise time placed variable like 
 # 2025-10-26 07:50:29.225725+00:00
 # when it should match the others like 2025-10-11 08:05:00+00:00
 
-#constant values i either check against or reference a lot
+#constant values i either check against or for my personal reference a lot
 shipping_statuses = {"Delivered", "Placed", "Shipped", "Cancelled"}
 valid_shipping_options = {"Flat rate", "Ground", "Expedited"}
 prices = {"Angry stickman": 5.99, "Wobbly stickman": 7.50, "Pleased stickman": 6.25}
@@ -656,11 +657,9 @@ def server(
     """
     response_headers = {"Content-Type": "text/html; charset=utf-8"}
     
-    try: # Wrap main logic in try/except for robustness
+    try:
         # --- HANDLE GET REQUESTS ---
         if request_method == "GET":
-            # (Your existing GET routing logic remains unchanged)
-            # ... make sure it includes routes for /order, /static/js/order.js etc. ...
             query_pos = url.find("?")
             if query_pos != -1:
                 query_string = url[query_pos:]
@@ -694,8 +693,22 @@ def server(
                                 return response_body, 200, response_headers
                     pass 
 
-                case "/order": # Serve the static HTML form
-                    response_body = open("static/html/order.html", encoding="utf-8").read()
+                case "/order":
+
+                    customer_name = "" 
+                    cookie_header = request_headers.get("Cookie", "") 
+                    if cookie_header:
+                        cookies = read_cookies(cookie_header)
+                        customer_name = cookies.get("customer_name", "") 
+
+                    #return HTML contents of order.html as a string so we can modify it later
+                    try:
+                         response_body = open("static/html/order.html", encoding="utf-8").read()
+                    except e:
+                         response_body = open("static/html/404.html", encoding="utf-8").read()
+                         return response_body, 404, response_headers
+                    
+                    response_body = response_body.replace("customer_name_placeholder", escape_html(customer_name)) #replaces a placeholder in order.html string                
                     return response_body, 200, response_headers
 
                 # Images, CSS, JS... (Ensure these are correct)
@@ -742,32 +755,23 @@ def server(
         # --- HANDLE POST REQUESTS ---
         elif request_method == "POST":
             if url == "/api/order":
-                # 1. Check Content-Type header
                 content_type = request_headers.get("Content-Type", "").lower()
                 if "application/json" not in content_type:
-                    response_body = json.dumps({"status": "error", "errors": ["Request must be application/json"]})
+                    response_body = json.dumps({"status": "error", "errors": ["Request header 'Content-Type' must be 'application/json'"]}) 
                     response_headers["Content-Type"] = "application/json; charset=utf-8"
                     return response_body, 400, response_headers
                 
-                # 2. Parse JSON body
-                try:
-                    data = json.loads(request_body or "{}")
-                except json.JSONDecodeError:
-                    response_body = json.dumps({"status": "error", "errors": ["Invalid JSON format"]})
-                    response_headers["Content-Type"] = "application/json; charset=utf-8"
-                    return response_body, 400, response_headers
-
-                # Map form names to expected JSON names
+                data = json.loads(request_body or "{}")
                 api_data = {
                     "product": data.get("product"),
-                    "from_name": data.get("from_name"), # Matches JSON example
+                    "from_name": data.get("from_name"), 
                     "quantity": data.get("quantity"),
-                    "address": data.get("address"),     # Matches JSON example
-                    "shipping": data.get("shipping"),   # Matches JSON example
-                    "notes": data.get("notes")          # Include notes if sent
+                    "address": data.get("address"),     
+                    "shipping": data.get("shipping"),   
+                    "notes": data.get("notes"),
+                    "remember_me": data.get("remember_me", False)
                 }
                 
-                # 3. Validate and process
                 success, result = process_api_order(api_data)
                 
                 response_headers["Content-Type"] = "application/json; charset=utf-8"
@@ -775,34 +779,49 @@ def server(
                     order_id = result
                     status_code = 201
                     response_data = {"status": "success", "order_id": order_id}
+                    
+                    # --- Cookie Logic based on 'remember_me' ---
                     customer_name = api_data.get("from_name", "")
-                    if customer_name:
-                         # Sanitize name (remove non-alphanumeric as hinted)
+                    remember = api_data.get("remember_me", False) 
+
+                    if remember and customer_name:
+                         # Sanitize name
                          sanitized_name = re.sub(r'[^a-zA-Z0-9]', '', customer_name)
-                         # Set the cookie header
-                         # Path=/ makes it available on all pages
-                         # Max-Age=31536000 sets it for 1 year
-                         response_headers["Set-Cookie"] = f"customer_name={sanitized_name}; Path=/; Max-Age=31536000" 
-                else: # Handle errors
+                         if sanitized_name: 
+                             # Set the cookie header to remember
+                             response_headers["Set-Cookie"] = f"customer_name={sanitized_name}; Path=/; Max-Age=31536000; SameSite=Lax" 
+                             print(f"Setting cookie: customer_name={sanitized_name}")
+                    else:
+                         # Check if cookie exists to delete it
+                         cookie_header = request_headers.get("Cookie", "")
+                         existing_name = ""
+                         if cookie_header:
+                              try:
+                                   cookies = read_cookies(cookie_header)
+                                   existing_name = cookies.get("customer_name", "")
+                              except ValueError:
+                                   pass # Ignore if cookie header is malformed
+                         
+                         if existing_name:
+                              # Set cookie to expire immediately (delete it)
+                              response_headers["Set-Cookie"] = f"customer_name=; Path=/; Max-Age=0; SameSite=Lax"
+                              print(f"Deleting cookie: customer_name")
+                    # --- End Cookie Logic ---
+
+                else: # Handle errors (keep existing 413/400 logic)
+                    # ... (error handling logic remains the same) ...
                     errors = result
                     length_errors = [err for err in errors if "characters" in err]
-                    other_errors = [err for err in errors if "characters" not in err]
-
                     if length_errors:
-                        # Prioritize 413 if there's a length error
                         status_code = 413
-                        # Optionally, only return length errors with 413, or all errors
                         response_data = {"status": "error", "errors": length_errors} 
-                        # Or use this line to return all errors even with 413:
-                        # response_data = {"status": "error", "errors": errors} 
                     else:
-                        # If no length errors, it must be other validation errors -> 400
                         status_code = 400
-                        response_data = {"status": "error", "errors": other_errors}
+                        response_data = {"status": "error", "errors": [err for err in errors if "characters" not in err]}
+
 
                 response_body = json.dumps(response_data)
                 return response_body, status_code, response_headers
-
             # Keep other POST routes (/ship_order, /cancel_order, /update_shipping)
             else:
                  params = parse_query_parameters(request_body or "")
