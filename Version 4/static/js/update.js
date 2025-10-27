@@ -1,16 +1,55 @@
-// In /static/js/update.js
-
-// Wait for the whole HTML page to load before running any script.
+//Wait for the whole HTML page to load before running any script.
 document.addEventListener("DOMContentLoaded", function() {
 
-    // --- Timer Logic (remains mostly the same) ---
+    //Countdown / shipping logic
     let countdownElement = document.getElementById("countdown-timer");
     if (countdownElement) {
-        // (Keep all the existing timer logic here)
-        // ...
+
+        //getting order info from the doc
+        let orderStatus = countdownElement.getAttribute("data-order-status");
+        let orderDateStr = countdownElement.getAttribute("data-order-date");
+        let orderId = countdownElement.getAttribute("data-order-id");
+        let shipTimeInMinutes = 1; //default time to ship once an order is placed
+
+        if (orderStatus !== "placed") {
+            let firstLetter = orderStatus.charAt(0).toUpperCase();
+            let restOfWord = orderStatus.slice(1);
+            countdownElement.textContent = "Order Status: " + firstLetter + restOfWord;
+        } else {
+            //start the timer
+            let orderDate = new Date(orderDateStr);
+            let shipDate = new Date(orderDate.getTime() + (shipTimeInMinutes * 60 * 1000));
+            let hasShipped = false;
+
+            //this function runs every second to update the timer.
+            function updateTimer() {
+                let now = new Date();
+                let remainingTime = shipDate - now; //time left in ms.
+
+                //every second we check if the timer is up, and if its at zero then we set ship the order
+                if (remainingTime <= 0) {
+                    countdownElement.textContent = "Order has shipped!";
+                    clearInterval(timerInterval); //stop the timer
+                    if (hasShipped == false) {
+                        hasShipped = true;
+                        //Referenced https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST 
+                        fetch('/ship_order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'id=' + orderId
+                        })
+                    }
+                } else {
+                    let totalSecondsLeft = Math.floor(remainingTime / 1000);
+                    countdownElement.textContent = "Time remaining until order ships: " + Math.floor(totalSecondsLeft / 60) + "m " + totalSecondsLeft % 60 + "s"; //display the timer
+                }
+            }
+            updateTimer(); 
+            var timerInterval = setInterval(updateTimer, 1000);
+        }
     }
 
-    // --- START: New Cancel Order Logic ---
+    //Cancel Order Logic
     let cancelButton = document.getElementById("cancel-order-button");
     let cancelMessageArea = document.getElementById("cancel-message-area");
     let orderManagementSection = document.querySelector(".flex-container#body-text:last-child"); // Get the parent div holding buttons/forms
@@ -18,22 +57,19 @@ document.addEventListener("DOMContentLoaded", function() {
     if (cancelButton && cancelMessageArea && countdownElement) { // Check if countdownElement exists too, we need its data
          cancelButton.addEventListener("click", function() {
             let orderId = countdownElement.getAttribute("data-order-id"); // Get ID from timer data
-
+            
+            //referenced https://www.w3schools.com/jsref/met_win_confirm.asp
             if (!confirm("Are you sure you want to cancel order #" + orderId + "?")) {
-                return; // Stop if user clicks Cancel
-            }
+                return;
+            } 
 
-            cancelMessageArea.textContent = "Processing cancellation..."; // Give feedback
-            cancelMessageArea.style.color = "black";
+            clearInterval(timerInterval); //Cancel the timer
 
-            // Send the DELETE request
+            //send the DELETE request
             fetch('/api/cancel_order', {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json' // MUST send this header
-                },
-                // Body needs to be a JSON string containing the order_id
-                body: JSON.stringify({ order_id: orderId }) 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({order_id:orderId}) 
             })
             .then(function(response) {
                 if (response.status === 204) { // Success! (No Content)

@@ -99,13 +99,7 @@ orders = [
 #TODO: 
 
 # Tracking order page:
-# Javascript timer no longer functions when tracking a newly placed order
-# Update order page no longer updates address correctly (but updating notes and shipping type work fine I guess?)
-# Cancel order button currently does nothing
-
-# Order placing page:
-# Price no longer dynamically displays when placing an order (is the whole update.js function broken?)
-# Prefill form button broken when placing an order
+# Cancel order button is too wide and needs some sort of visual feedback to indicate an order has been cancelled (JS DOM update the page, go to order update page, or forced refresh...)
 
 # Orders table page:
 # This is nitpicky, but the time placed shows a very precise time placed variable like 
@@ -218,7 +212,9 @@ def render_tracking(order):
         result += f"<tr><th>{escape_html(key.upper())}</th><td>{display_value}</td></tr>"
     result += f"""
             </table>
-        </div>
+        </div>"""
+    if order["status"] == "Placed":
+        result += f"""
         <div class="flex-container" id="body-text">
             <div class="flex-container" id="shipping-status" style="flex-direction:column;">
                 <h3>Order Management</h3>
@@ -228,9 +224,7 @@ def render_tracking(order):
                    data-order-id="{order_id}">
                    Time remaining until order ships: Calculating...
                 </p>
-            </div>"""
-    if order["status"] == "Placed":
-        result += f"""
+            </div>
             <form method="POST" action="/update_shipping" class="flex-container" id="shipping-status" style="flex-direction: column; padding: 10px;">
                 <label for="delivery-address" style="padding:10px">Delivery Address: </label>
                 <br>
@@ -249,7 +243,10 @@ def render_tracking(order):
                 <button type="submit">Update Order</button>
                 <input type="text" name="id" value="{order_id}" hidden>
             </form>
-            <button type="button" id="cancel-order-button" class="cancel-button">Cancel Order</button>"""
+            <div class="flex-container" style="justify-content:center;">
+                <button type="button" id="cancel-order-button" class="cancel-button">Cancel Order</button>
+            </div>
+            <div id="cancel-message-area" style="margin-top: 15px; font-weight: bold;"></div>"""
     result +="""
         </div>
     </div>
@@ -808,23 +805,15 @@ def server(
 
             # Keep other POST routes (/ship_order, /cancel_order, /update_shipping)
             else:
-                 params = parse_query_parameters("?" + (request_body or ""))
+                 params = parse_query_parameters(request_body or "")
                  match url:
                     case "/ship_order":
                          if ship_order(params):
                               response_headers["Content-Type"] = "text/plain; charset=utf-8"
-                              return "Success", 200, response_headers
+                              return "Success", 201, response_headers
                          else:
                               response_headers["Content-Type"] = "text/plain; charset=utf-8"
                               return "Failure", 400, response_headers
-                    
-                    case "/cancel_order":
-                        if cancel_order(params):
-                            response_body = render_order_success(params["id"])
-                            return response_body, 200, response_headers
-                        else:
-                            response_body = open("static/html/order_fail.html").read()
-                            return response_body, 400, response_headers
 
                     case "/update_shipping":
                         if update_shipping_info(params):
@@ -835,21 +824,20 @@ def server(
                             return response_body, 400, response_headers
                     
                     case _:
-                         pass # Falls through to 404
+                         pass #falls through to 404
 
-        # --- HANDLE DELETE REQUESTS (Placeholder for Task 4) ---
         elif request_method == "DELETE":
             if url == "/api/cancel_order":
-                # 1. Check Content-Type header
+                #check for valid content type
                 content_type = request_headers.get("Content-Type", "").lower()
                 if "application/json" not in content_type:
-                    # Return 400 Bad Request, body doesn't matter per instructions
                     return "", 400, {"Content-Type": "text/plain"} 
 
-                # 2. Parse JSON body
+                #parse JSON body
                 try:
+                    #referenced https://docs.python.org/3/library/json.html for JSON decoding
                     data = json.loads(request_body or "{}")
-                    order_id_to_cancel = str(data.get("order_id", "")) # Get ID as string
+                    order_id_to_cancel = str(data.get("order_id", ""))
                 except (json.JSONDecodeError, AttributeError):
                     # Invalid JSON or missing order_id key
                     return "", 400, {"Content-Type": "text/plain"}
@@ -870,7 +858,6 @@ def server(
             
             else:
                  pass # Other DELETE requests fall through to 404
-        # Fall through to 404 if no route matched
         
     except FileNotFoundError:
         response_body = open("static/html/404.html", encoding="utf-8").read()

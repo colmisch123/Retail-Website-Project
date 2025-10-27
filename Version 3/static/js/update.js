@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", function() {
         let orderStatus = countdownElement.getAttribute("data-order-status");
         let orderDateStr = countdownElement.getAttribute("data-order-date");
         let orderId = countdownElement.getAttribute("data-order-id");
-        let shipTimeInMinutes = 2; //default time to ship once an order is placed
+        let shipTimeInMinutes = 1; //default time to ship once an order is placed
 
         if (orderStatus !== "placed") {
             let firstLetter = orderStatus.charAt(0).toUpperCase();
@@ -53,4 +53,5 @@ document.addEventListener("DOMContentLoaded", function() {
             let timerInterval = setInterval(updateTimer, 1000);  //the beating heart of it all
         }
     }
+
 });

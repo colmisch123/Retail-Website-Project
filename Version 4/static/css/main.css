@@ -156,6 +156,10 @@ img:hover {
   width: 40%;
 }
 
+/*Incredibly generic flex container because I realized I don't have a generic one*/
+.flex-container{
+  display:flex;
+}
 
 
 
@@ -255,6 +259,7 @@ button:hover {
 
 button.cancel-button {
     background-color: #ffa3a3;
+    width:fit-content;
 }
 
 button.cancel-button:hover {
