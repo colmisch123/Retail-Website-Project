@@ -10,7 +10,7 @@ This repo serves as an archive of all iterations of my website project. The webs
 
 **Version 3** allows users to place new orders, as well as update and cancel them. It also introduces the usage of Javascript to make pages more dynamic, and HTTP POST requests to update orders in the backend.
 
-**Version 4**: Current work in progress and unpublished.
+**Version 4**: better compliance with real HTTP standards. Created the ability to store/forget the user's name via cookies. Improved server robustness / ability to handle errors.
 
 # Running
 To run versions 1-4, simply run the terminal command ```python server.py``` while your terminal is in the respective version directory.

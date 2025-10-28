@@ -1,5 +1,4 @@
-// In /static/js/order.js
-
+//wait for the whole HTML page to load before running any script. Referenced https://oxylabs.io/resources/web-scraping-faq/javascript/wait-page-load 
 document.addEventListener("DOMContentLoaded", function() {
     // --- Get references to form elements ---
     let theForm = document.querySelector("#form-collection"); 
@@ -75,7 +74,7 @@ document.addEventListener("DOMContentLoaded", function() {
         //reset top message
         messageArea.textContent = ""; 
         messageArea.style.color = "black";
-        
+
         let rememberMeCheckbox = document.getElementById("remember_me");
 
         //collect all submitted data
@@ -94,6 +93,7 @@ document.addEventListener("DOMContentLoaded", function() {
             remember_me: rememberMeCheckbox.checked
         };
 
+        //start the fetch request to create an order with submitted data
         fetch('/api/order', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -101,14 +101,10 @@ document.addEventListener("DOMContentLoaded", function() {
             credentials: 'include'
         })
         .then(function(response) {
-            //try to parse JSON even if status is not ok, for error messages
-            return response.json().then(function(data){
-                return { ok: response.ok, status: response.status, data: data }; 
-            }).catch(function(jsonError){
-                //handle cases where response is not JSON (e.g., server crash -> HTML error)
-                console.error("JSON parsing error:", jsonError);
-                return { ok: false, status: response.status, data: { errors: ["Server returned a non-JSON response."] } };
-            });
+            let jsonPromise = response.json(); //try to read the response body as JSON (referenced https://developer.mozilla.org/en-US/docs/Web/API/Response/json)
+            return jsonPromise.then(function(jsonData) {
+                    return {ok : response.ok, status : response.status, data : jsonData}; //pass whether the request was valid and the JSON data itself
+            })
         })
         .then(function(result) {
             if (result.ok) { 
@@ -131,5 +127,5 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    toggleQuantityField(); //hide quantity until a product is chosen
+    toggleQuantityField(); //hide quantity intially until a product is chosen
 });

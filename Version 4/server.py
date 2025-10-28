@@ -598,7 +598,6 @@ def process_api_order(data: dict) -> tuple[bool, int | list[str]]:
         "shipping": shipping
     }
     orders.append(new_order)
-    print(f"API added new order with ID: {new_id}")
     return True, new_id #return success and the new ID
 
 #checks if an order is cancellable, and if so, cancels it
