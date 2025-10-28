@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 
 # If you need to add anything above here you should check with course staff first.
 
+#TODO: Fix things for gradescope submission (double check parse query parameters function?)
+
 orders = [
     {
         "id": 0,
@@ -365,7 +367,7 @@ def render_orders(order_filters: dict[str, str]):
             for order in filtered_orders:
                 result += "<tr>" + format_one_order(order) + "</tr>"
         else:
-            result += "<tr><td colspan='7'>No orders found matching the selected filters.</td></tr>"
+            result += "<tr><td colspan='100%'>No orders found matching the selected filters.</td></tr>"
     result += """
     </table>
 </body>
@@ -542,12 +544,24 @@ def process_api_order(data: dict) -> tuple[bool, int | list[str]]:
     
     #check for missing fields
     for field in required_fields:
-        if field not in data or not data[field]: # Check if field exists and is not empty
+        if field not in data or not data[field]: #check if field exists and is not empty
              errors.append(f"Missing required field: {field}")
              
     if errors: #if any fields are missing, stop validation here
         return False, errors
 
+    from_name = data.get("from_name", "") # Use .get() for safety
+    address = data.get("address", "")   # Use .get() for safety
+    
+    if len(from_name) >= max_name_length:
+        errors.append(f"Sender name must be less than {max_name_length} characters")
+    if len(address) >= max_address_length:
+        errors.append(f"Address must be less than {max_address_length} characters")
+        
+    # If length errors occurred, return them immediately before further processing
+    if errors:
+        return False, errors
+    
     #get data for validation
     product = data.get("product", "")
     from_name = data.get("from_name", "")
@@ -645,6 +659,11 @@ def server(
                     return response_body, 200, response_headers
                 
                 case "/orders" | "/admin/orders":
+                    #check for bad input queries
+                    if "&&" in query_string or "==" in query_string or query_string.startswith('&') or query_string.endswith('&') or query_string.startswith('=') or query_string.endswith('='):
+                         response_body = open("static/html/404.html", encoding="utf-8").read() # Or a specific error page
+                         return response_body, 400, response_headers
+                    
                     response_body = render_orders(order_filters)
                     if isinstance(response_body, tuple): #i had a couple of edge cases where i return a tuple with specific error codes
                         return response_body
@@ -723,10 +742,17 @@ def server(
                     content_type = request_headers.get("Content-Type", "").lower()
                     if "application/json" not in content_type:
                         response_body = json.dumps({"status": "error", "errors": ["Request header 'Content-Type' must be 'application/json'"]}) #referenced https://www.geeksforgeeks.org/python/json-dumps-in-python/
+                        response_headers["Content-Type"] = "application/json"
+                        return response_body, 400, response_headers
+                    
+                    #test for bad / empty JSON
+                    try:
+                        data = json.loads(request_body if request_body is not None else "{}") 
+                    except:
+                        response_body = json.dumps({"status": "error", "errors": ["Invalid JSON format in request body"]})
                         response_headers["Content-Type"] = "application/json; charset=utf-8"
                         return response_body, 400, response_headers
                     
-                    data = json.loads(request_body or "{}")
                     api_data = {
                         "product": data.get("product"),
                         "from_name": data.get("from_name"), 
@@ -783,6 +809,7 @@ def server(
                             response_data = {"status": "error", "errors": [err for err in errors]}
 
                     return json.dumps(response_data), status_code, response_headers
+                
                 case "/ship_order":
                         params = parse_query_parameters(request_body or "")
                         if ship_order(params):
@@ -811,14 +838,16 @@ def server(
                 if "application/json" not in content_type:
                     return "", 400, {"Content-Type": "text/plain"} 
 
-                #attempt to parse JSON body
+                #attempt to parse JSON body (referenced https://docs.python.org/3/library/json.html for JSON decoding)
                 try:
-                    #referenced https://docs.python.org/3/library/json.html for JSON decoding
                     data = json.loads(request_body or "{}")
                     order_id_to_cancel = str(data.get("order_id", ""))
                 except:
                     #invalid JSON or missing order_id key
                     return "", 400, {"Content-Type": "text/plain"}
+
+                if not order_id_to_cancel or not order_id_to_cancel.isdigit():
+                    return "", 400, {"Content-Type": "text/plain"} #return 400 Bad Request if ID is empty or not numeric
 
                 #call cancellation
                 result = cancel_order_api(order_id_to_cancel)
@@ -826,7 +855,7 @@ def server(
                 if result == "success":
                     return "", 204, {} #no body so we don't need headers
                 elif result == "not_found":
-                    return "", 404, {"Content-Type": "text/plain"}
+                    return "", 400, {"Content-Type": "text/plain"}
                 elif result == "not_cancellable":
                     return "", 400, {"Content-Type": "text/plain"}
             
