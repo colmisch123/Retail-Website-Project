@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 
 # If you need to add anything above here you should check with course staff first.
 
-#TODO: Fix things for gradescope submission (double check parse query parameters function?)
-
 orders = [
     {
         "id": 0,
@@ -652,6 +650,7 @@ def server(
             else:
                 order_filters = {}
                 path = url
+                query_string = url
             
             match path:
                 case "/" | "/about":
@@ -738,7 +737,7 @@ def server(
         elif request_method == "POST":
             match url:
                 case "/api/order":
-
+                    
                     content_type = request_headers.get("Content-Type", "").lower()
                     if "application/json" not in content_type:
                         response_body = json.dumps({"status": "error", "errors": ["Request header 'Content-Type' must be 'application/json'"]}) #referenced https://www.geeksforgeeks.org/python/json-dumps-in-python/
@@ -748,9 +747,9 @@ def server(
                     #test for bad / empty JSON
                     try:
                         data = json.loads(request_body if request_body is not None else "{}") 
-                    except:
+                    except json.JSONDecodeError: #referenced https://www.geeksforgeeks.org/python/json-parsing-errors-in-python/
                         response_body = json.dumps({"status": "error", "errors": ["Invalid JSON format in request body"]})
-                        response_headers["Content-Type"] = "application/json; charset=utf-8"
+                        response_headers["Content-Type"] = "application/json" 
                         return response_body, 400, response_headers
                     
                     api_data = {
@@ -765,7 +764,7 @@ def server(
                     
                     success, result = process_api_order(api_data)
                     
-                    response_headers["Content-Type"] = "application/json; charset=utf-8"
+                    response_headers["Content-Type"] = "application/json"
                     if success:
                         order_id = result
                         status_code = 201
@@ -797,16 +796,22 @@ def server(
                     else: #error in creating the order. The below chunk is just a way to determine what error to send back 
                           #(although Kluver said in a Slack post that he hadn't originally considered this iirc)
                         errors = result
-                        for error in errors:
-                            if error == "characters":
-                                length_errors = True
-                                break
-                        if length_errors:
-                            status_code = 413
-                            response_data = {"status": "error", "errors": length_errors} 
-                        else:
-                            status_code = 400
-                            response_data = {"status": "error", "errors": [err for err in errors]}
+                        status_code = 400 #default error code
+                        
+                        #check specifically if any length errors occurred
+                        length_error_messages = []
+                        other_error_messages = []
+                        for err in errors:
+                            if "characters" in err:
+                                length_error_messages.append(err)
+                            else:
+                                other_error_messages.append(err)
+                                
+                        if length_error_messages:
+                            status_code = 413 #return only the length errors for status 413
+                            response_data = {"status": "error", "errors": length_error_messages}
+                        else: #if no length errors, status remains 400 return the other validation errors found
+                            response_data = {"status": "error", "errors": other_error_messages}                   
 
                     return json.dumps(response_data), status_code, response_headers
                 
@@ -855,7 +860,7 @@ def server(
                 if result == "success":
                     return "", 204, {} #no body so we don't need headers
                 elif result == "not_found":
-                    return "", 400, {"Content-Type": "text/plain"}
+                    return "", 404, {"Content-Type": "text/plain"}
                 elif result == "not_cancellable":
                     return "", 400, {"Content-Type": "text/plain"}
             
