@@ -96,24 +96,14 @@ orders = [
     },
 ]
 
-#TODO: 
-
-# Orders table page:
-# Orders only update from "shipped" to "placed" if you go to their tracking page. Note that this doesn't allow any weird editing/cancelling
-# but it should match the behavior of other orders when they "ship." I think the functionality to do this is actually broken in the JS right now though, (currently requires refresh) 
-# so if that gets fixed it'll probably fix this edge case. 
-
-# This is nitpicky, but the time placed shows a very precise time placed variable like 
-# 2025-10-26 07:50:29.225725+00:00
-# when it should match the others like 2025-10-11 08:05:00+00:00
-
-#constant values i either check against or for my personal reference a lot
+#constant values I either check against or for my personal reference
 shipping_statuses = {"Delivered", "Placed", "Shipped", "Cancelled"}
 valid_shipping_options = {"Flat rate", "Ground", "Expedited"}
 prices = {"Angry stickman": 5.99, "Wobbly stickman": 7.50, "Pleased stickman": 6.25}
 max_name_length = 64
 max_address_length = 1024
 
+#updates an order's status from "Placed" to "Shipped"
 def ship_order(params: dict) -> bool:
     order_id_str = params.get("id", "")
     if not order_id_str.isdigit():
@@ -129,24 +119,29 @@ def ship_order(params: dict) -> bool:
                 return False #order found but cannot be shipped because of status
     return False #order not found
 
-
+#helper function to print out a row of an order
 def format_one_order(order):
     result = ""
-    is_first_item = True
     for item_key in order:
         item_value = str(order[item_key])
-        if is_first_item:
-            result += f"<td><a href='/orders?order_number={item_value}'>{item_value}</a></td>\n"
-            is_first_item = False
-        elif item_key == "cost":
-            result += f"<td>{typeset_dollars(order[item_key])}</td>\n"
-        elif item_key == "address":
-            result += f"<td>{item_value}</td>\n"
-        else:
-            result += f"<td>{escape_html(item_value)}</td>\n"
+        match item_key: #enter a match statement for more item dependent formatting
+            case "id":
+                result += f"<td><a href='/orders?order_number={escape_html(item_value)}'>{escape_html(item_value)}</a></td>\n" #link to tracking pages
+                continue
+            case "cost":
+                rounded_cost = typeset_dollars(order[item_key])
+                result += f"<td>{escape_html(rounded_cost)}</td>\n"
+                continue
+            case "order date":
+                result += f"<td>{escape_html(order[item_key].strftime('%Y-%m-%d %H:%M:%S'))}</td>\n" #referenced https://www.geeksforgeeks.org/python/python-strftime-function/
+                continue
+            case "address":
+                result += f"<td>{item_value}</td>\n"
+                continue
+        result += f"<td>{escape_html(item_value)}</td>\n" #default if no specific formatting rules
     return result
 
-
+#gives the tracking page for a single order
 def render_tracking(order):
     keys = list(order.keys()) 
     order_id = str(order.get("id", "Error: order doesn't have ID"))
@@ -206,6 +201,11 @@ def render_tracking(order):
             display_value = "N/A"
         elif isinstance(value, datetime):
             display_value = escape_html(value.strftime('%Y-%m-%d %H:%M:%S'))
+        elif key == "status":
+            display_value = escape_html(value)
+            display_value = f'</th><td id="current-status">{display_value}</td></tr>'
+            result += f"<tr><th>{escape_html(key.upper())}{display_value}"
+            continue
         else:
             escaped_value = escape_html(str(value))
             display_value = escaped_value.replace("&lt;br&gt;", "<br>")
@@ -257,7 +257,7 @@ def render_tracking(order):
 """
     return result
 
-
+#gives page for table of all orders
 def render_orders(order_filters: dict[str, str]):
     order_number_raw = order_filters.get("order_number", "").strip()
     status_raw = order_filters.get("status", "").strip()
@@ -336,16 +336,17 @@ def render_orders(order_filters: dict[str, str]):
     filtered_orders = []
     if order_number_raw:
         try:
-            order_number_int = int(order_number_raw) 
+            order_number_int = int(order_number_raw) #check for valid order number
             if order_number_int < 0:
                 result += "<tr><td colspan='100%'>Invalid order number.</td></tr>"
             else:
                 for order in orders:
-                    if order["id"] == order_number_int:
-                        status_match = not status or (order["status"].lower() == status)
-                        sender_match = not sender_comparison or (sender_comparison in order["from"].lower())
+                    if order_number_int == order["id"]:
+                        status_match = not status or (order["status"].lower() == status) #boolean that is true if we don't have a status filter, or the order status matches our filter
+                        sender_match = not sender_comparison or (sender_comparison in order["from"].lower()) #boolean that is true if we don't have a sender filter, or the order sender matches our filter
                         if status_match and sender_match:
-                            # If a single order is found, render its tracking page directly
+                            #if only a single order is found, render the tracking page for it directly
+                            #(it's guaranteed we render at most one order here because we filter by id first)
                             html_body = render_tracking(order)
                             headers = {"Content-Type": "text/html; charset=utf-8"}
                             return html_body, 200, headers
@@ -372,7 +373,7 @@ def render_orders(order_filters: dict[str, str]):
 """
     return result
 
-
+#gives page for a successful order update, the name of the function is a bit legacy
 def render_order_success(order_id):
     return f"""
 <!DOCTYPE html>
@@ -400,18 +401,16 @@ def render_order_success(order_id):
 </html>
 """
 
-
+#function to add a new order, verifies all inputted info
 def add_new_order(params: dict) -> int | None:
     required_fields = ["product", "order_quantity", "sender", "recipient", "shipping_option"]
-    for field in required_fields:
+    for field in required_fields: #check that all required fields are present
         if not params.get(field):
-            print(f"Validation failed: Missing field '{field}'")
             return None
             
     product = params["product"]
     quantity = int(params.get("order_quantity", 0))
-    if product not in prices or quantity <= 0:
-        print("Error: invalid product or quantity")
+    if product not in prices or quantity <= 0: #need to have valid product and quantity
         return None
     
     new_id = len(orders)
@@ -445,14 +444,15 @@ def cancel_order(params):
     for order in orders:
         if order["id"] == order_id:
             #check if cancellable once order is found
-            if order["status"] not in ["Completed", "Cancelled", "Delivered"]:
+            if order["status"] == "Placed":
                 order["status"] = "Cancelled"
                 return True
             else:
                 return False #found the order but it can't be cancelled
     return False #no order with that input ID was found
 
-
+#update shipping info of a specific order
+#order have status of "Placed", and can edit the shipping method, address, and order notes
 def update_shipping_info(params):
     order_id_str = params.get("id", "")
     if not order_id_str.isdigit():
@@ -475,7 +475,7 @@ def update_shipping_info(params):
                 return False #found the order but can't edit it
     return False #order not found
 
-
+#function called on rendered strings to prevent HTML injections
 def escape_html(s: str) -> str:
     # this is a bare minimum for hack-prevention.
     # You might want more.
@@ -486,10 +486,7 @@ def escape_html(s: str) -> str:
     s = s.replace("'", "&#39;")
     return s
 
-
-# NOTE This is not a fully spec compliant cookie parser, but we won't be grading
-# your code with inputs that are more complex than this so it should be good
-# enough. Feel free to improve it if you want.
+#function to read cookies and return them as a dictionary
 def read_cookies(cookie_str: str) -> dict[str, str]:
     parts = re.split(r"[;,]", cookie_str)
     parts = [x.strip() for x in parts]
@@ -504,14 +501,14 @@ def read_cookies(cookie_str: str) -> dict[str, str]:
         out[key] = value
     return out
 
-
+#inverse of escape_html
 def unescape_url(url_str: str) -> str:
     import urllib.parse
 
     # NOTE -- this is the only place urllib is allowed on this assignment.
     return urllib.parse.unquote_plus(url_str)
 
-
+#given a query string like in a GET request, this function returns all query inputs as a dictionary
 def parse_query_parameters(query_string: str) -> dict[str, str]:
     parsed_params: dict[str, str] = {}
     if not query_string:
@@ -533,137 +530,111 @@ def parse_query_parameters(query_string: str) -> dict[str, str]:
 
     return parsed_params
 
-
+#formats money
 def typeset_dollars(number: float) -> str:
     return f"${number:.2f}"
 
-
-# --- Constants for Validation ---
-
-
-
-# --- New Validation and Order Creation Function ---
+#handles the creation of new orders, validating all inputs
 def process_api_order(data: dict) -> tuple[bool, int | list[str]]:
-    """
-    Validates JSON order data and adds the order if valid.
-    Returns (True, new_order_id) on success.
-    Returns (False, list_of_errors) on failure.
-    """
-    errors = []
+
+    errors = [] #collect a list of errors
     required_fields = ["product", "from_name", "quantity", "address", "shipping"]
     
-    # 1. Check for missing fields
+    #check for missing fields
     for field in required_fields:
         if field not in data or not data[field]: # Check if field exists and is not empty
              errors.append(f"Missing required field: {field}")
              
-    if errors: # If any fields are missing, stop validation here
+    if errors: #if any fields are missing, stop validation here
         return False, errors
 
-    # 2. Field-specific validations (only if all fields are present)
-    product = data["product"]
-    from_name = data["from_name"]
-    quantity_raw = data.get("quantity") # Use .get() for safer access
-    address = data["address"]
-    shipping = data["shipping"]
+    #get data for validation
+    product = data.get("product", "")
+    from_name = data.get("from_name", "")
+    quantity_raw = data.get("quantity", 0)
+    address = data.get("address", "")
+    shipping = data.get("shipping", "")
 
-    # Validate quantity
-    quantity = 0 # Default value
+    #validate quantity
+    quantity = 0 #default value
     if isinstance(quantity_raw, int) and quantity_raw > 0:
         quantity = quantity_raw
     elif isinstance(quantity_raw, str) and quantity_raw.isdigit() and int(quantity_raw) > 0:
-         quantity = int(quantity_raw) # Allow numeric strings
+         quantity = int(quantity_raw) #allow numeric strings
     else:
         errors.append("Quantity must be a positive integer")
 
-    # Validate product
+    #validate product
     if product not in prices:
         errors.append("Unrecognized product")
 
-    # Validate shipping
+    #validate shipping
     if shipping not in valid_shipping_options:
         errors.append("Invalid shipping method")
 
-    # Validate lengths
+    #validate lengths
     if len(from_name) >= max_name_length:
         errors.append(f"Sender name must be less than {max_name_length} characters")
     if len(address) >= max_address_length:
         errors.append(f"Address must be less than {max_address_length} characters")
 
-    # If any errors occurred during validation, return them
+    #return any found errors
     if errors:
         return False, errors
 
-    # 3. Validation passed, create the order (similar to add_new_order)
+    #validation passed, create the order (similar to add_new_order)
     new_id = len(orders) 
     order_date = datetime.now(timezone.utc)
-    # ship_by_date = order_date + timedelta(minutes=SHIP_TIME_MINUTES) # If using ship_by_date
 
     new_order = {
         "id": new_id,
         "status": "Placed",
         "cost": prices[product] * quantity,
-        "from": from_name,  # Use from_name from JSON
-        "address": address.replace("\n", "<br>"), # Store address with <br>
+        "from": from_name,
+        "address": address.replace("\n", "<br>"), #store address with <br> so they render correctly
         "product": f"{quantity}x {product.capitalize()}",
-        "notes": data.get("notes", "N/A"), # Get notes if provided
+        "notes": data.get("notes", "N/A"), #get notes if provided
         "order date": order_date,
-        # "ship_by_date": ship_by_date, # If using ship_by_date
         "shipping": shipping
     }
     orders.append(new_order)
     print(f"API added new order with ID: {new_id}")
-    return True, new_id # Return success and the new ID
+    return True, new_id #return success and the new ID
 
-
+#checks if an order is cancellable, and if so, cancels it
 def cancel_order_api(order_id_str: str) -> str:
-    """
-    Attempts to cancel an order based on its ID string.
-    Returns:
-        "success" if cancelled successfully.
-        "not_found" if the order ID is invalid or doesn't exist.
-        "not_cancellable" if the order exists but its status prevents cancellation.
-    """
     if not order_id_str.isdigit():
-        return "not_found" # Invalid ID format
-
+        return "not_found" #invalid ID format
     order_id = int(order_id_str)
     
     for order in orders:
         if order["id"] == order_id:
-            # Check if cancellable *after* finding the order
-            # Assuming 'Delivered' implies completed/shipped
-            if order["status"] not in ["Completed", "Cancelled", "Delivered", "Shipped"]: 
+            if order["status"] == "Placed":
                 order["status"] = "Cancelled"
                 print(f"API cancelled order ID: {order_id}")
                 return "success"
             else:
                 print(f"API: Order {order_id} found but cannot be cancelled (status: {order['status']})")
-                return "not_cancellable" # Found the order but it can't be cancelled
-                
-    print(f"API: Order ID {order_id} not found for cancellation.")
-    return "not_found" # No order with that valid ID was found
+                return "not_cancellable" #found the order but it can't be cancelled                
+    return "not_found" #no order with that valid ID was found
 
-
-# --- Update the main `server` function ---
+#the beating heart of it all
 def server(
     request_method: str,
     url: str,
     request_body: str | None,
     request_headers: dict[str, str],
 ) -> tuple[str | bytes, int, dict[str, str]]:
-    """
-    Handles all HTTP requests and routes them to the correct logic.
-    """
     response_headers = {"Content-Type": "text/html; charset=utf-8"}
     
     try:
-        # --- HANDLE GET REQUESTS ---
+        #GET requests
         if request_method == "GET":
             query_pos = url.find("?")
+            #clean up order filters
             if query_pos != -1:
                 query_string = url[query_pos:]
-                order_filters = parse_query_parameters(query_string[1:]) # Pass without '?'
+                order_filters = parse_query_parameters(query_string[1:])
                 path = url[:query_pos]
             else:
                 order_filters = {}
@@ -676,11 +647,9 @@ def server(
                 
                 case "/orders" | "/admin/orders":
                     response_body = render_orders(order_filters)
-                    # Check if render_orders returned the tracking page tuple directly
-                    if isinstance(response_body, tuple):
-                        return response_body # Pass the tuple through
+                    if isinstance(response_body, tuple): #i had a couple of edge cases where i return a tuple with specific error codes
+                        return response_body
                     else:
-                        # Otherwise, wrap the orders list HTML in the standard response
                         return response_body, 200, response_headers
 
                 case p if p.startswith("/tracking/"):
@@ -691,27 +660,20 @@ def server(
                             if order["id"] == order_id:
                                 response_body = render_tracking(order)
                                 return response_body, 200, response_headers
-                    pass 
+                    pass #return 404 if nothing found
 
                 case "/order":
-
                     customer_name = "" 
                     cookie_header = request_headers.get("Cookie", "") 
                     if cookie_header:
                         cookies = read_cookies(cookie_header)
                         customer_name = cookies.get("customer_name", "") 
-
-                    #return HTML contents of order.html as a string so we can modify it later
-                    try:
-                         response_body = open("static/html/order.html", encoding="utf-8").read()
-                    except e:
-                         response_body = open("static/html/404.html", encoding="utf-8").read()
-                         return response_body, 404, response_headers
                     
-                    response_body = response_body.replace("customer_name_placeholder", escape_html(customer_name)) #replaces a placeholder in order.html string                
+                    response_body = open("static/html/order.html", encoding="utf-8").read() #return HTML contents of order.html as a string so we can modify it
+                    response_body = response_body.replace("customer_name_placeholder", escape_html(customer_name)) #modifying the HTML by replacing a placeholder for the name                
                     return response_body, 200, response_headers
 
-                # Images, CSS, JS... (Ensure these are correct)
+                #Images
                 case "/images/main.png" | "/images/main":
                     response_body = open("static/images/main.png", "rb").read()
                     response_headers["Content-Type"] = "image/png"
@@ -732,6 +694,7 @@ def server(
                     response_body = open("static/images/davidkim.jpg", "rb").read()
                     response_headers["Content-Type"] = "image/jpeg"
                     return response_body, 200, response_headers
+                #CSS
                 case "/main.css":
                     response_body = open("static/css/main.css", "rb").read()
                     response_headers["Content-Type"] = "text/css"
@@ -741,6 +704,7 @@ def server(
                     response_body = open(filename, "rb").read()
                     response_headers["Content-Type"] = "text/css"
                     return response_body, 200, response_headers
+                #Javascript
                 case "/static/js/update.js":
                     response_body = open("static/js/update.js").read()
                     response_headers["Content-Type"] = "application/javascript"
@@ -750,100 +714,96 @@ def server(
                     response_headers["Content-Type"] = "application/javascript"
                     return response_body, 200, response_headers
                 case _:
-                    pass
+                    pass #goes down to 404
         
-        # --- HANDLE POST REQUESTS ---
+        #POST requests
         elif request_method == "POST":
-            if url == "/api/order":
-                content_type = request_headers.get("Content-Type", "").lower()
-                if "application/json" not in content_type:
-                    response_body = json.dumps({"status": "error", "errors": ["Request header 'Content-Type' must be 'application/json'"]}) 
+            match url:
+                case "/api/order":
+
+                    content_type = request_headers.get("Content-Type", "").lower()
+                    if "application/json" not in content_type:
+                        response_body = json.dumps({"status": "error", "errors": ["Request header 'Content-Type' must be 'application/json'"]}) #referenced https://www.geeksforgeeks.org/python/json-dumps-in-python/
+                        response_headers["Content-Type"] = "application/json; charset=utf-8"
+                        return response_body, 400, response_headers
+                    
+                    data = json.loads(request_body or "{}")
+                    api_data = {
+                        "product": data.get("product"),
+                        "from_name": data.get("from_name"), 
+                        "quantity": data.get("quantity"),
+                        "address": data.get("address"),     
+                        "shipping": data.get("shipping"),   
+                        "notes": data.get("notes"),
+                        "remember_me": data.get("remember_me", False)
+                    }
+                    
+                    success, result = process_api_order(api_data)
+                    
                     response_headers["Content-Type"] = "application/json; charset=utf-8"
-                    return response_body, 400, response_headers
-                
-                data = json.loads(request_body or "{}")
-                api_data = {
-                    "product": data.get("product"),
-                    "from_name": data.get("from_name"), 
-                    "quantity": data.get("quantity"),
-                    "address": data.get("address"),     
-                    "shipping": data.get("shipping"),   
-                    "notes": data.get("notes"),
-                    "remember_me": data.get("remember_me", False)
-                }
-                
-                success, result = process_api_order(api_data)
-                
-                response_headers["Content-Type"] = "application/json; charset=utf-8"
-                if success:
-                    order_id = result
-                    status_code = 201
-                    response_data = {"status": "success", "order_id": order_id}
-                    
-                    # --- Cookie Logic based on 'remember_me' ---
-                    customer_name = api_data.get("from_name", "")
-                    remember = api_data.get("remember_me", False) 
-
-                    if remember and customer_name:
-                         # Sanitize name
-                         sanitized_name = re.sub(r'[^a-zA-Z0-9]', '', customer_name)
-                         if sanitized_name: 
-                             # Set the cookie header to remember
-                             response_headers["Set-Cookie"] = f"customer_name={sanitized_name}; Path=/; Max-Age=31536000; SameSite=Lax" 
-                             print(f"Setting cookie: customer_name={sanitized_name}")
-                    else:
-                         # Check if cookie exists to delete it
-                         cookie_header = request_headers.get("Cookie", "")
-                         existing_name = ""
-                         if cookie_header:
-                              try:
-                                   cookies = read_cookies(cookie_header)
-                                   existing_name = cookies.get("customer_name", "")
-                              except ValueError:
-                                   pass # Ignore if cookie header is malformed
-                         
-                         if existing_name:
-                              # Set cookie to expire immediately (delete it)
-                              response_headers["Set-Cookie"] = f"customer_name=; Path=/; Max-Age=0; SameSite=Lax"
-                              print(f"Deleting cookie: customer_name")
-                    # --- End Cookie Logic ---
-
-                else: # Handle errors (keep existing 413/400 logic)
-                    # ... (error handling logic remains the same) ...
-                    errors = result
-                    length_errors = [err for err in errors if "characters" in err]
-                    if length_errors:
-                        status_code = 413
-                        response_data = {"status": "error", "errors": length_errors} 
-                    else:
-                        status_code = 400
-                        response_data = {"status": "error", "errors": [err for err in errors if "characters" not in err]}
-
-
-                response_body = json.dumps(response_data)
-                return response_body, status_code, response_headers
-            # Keep other POST routes (/ship_order, /cancel_order, /update_shipping)
-            else:
-                 params = parse_query_parameters(request_body or "")
-                 match url:
-                    case "/ship_order":
-                         if ship_order(params):
-                              response_headers["Content-Type"] = "text/plain; charset=utf-8"
-                              return "Success", 201, response_headers
-                         else:
-                              response_headers["Content-Type"] = "text/plain; charset=utf-8"
-                              return "Failure", 400, response_headers
-
-                    case "/update_shipping":
-                        if update_shipping_info(params):
-                            response_body = render_order_success(params["id"])
-                            return response_body, 200, response_headers
+                    if success:
+                        order_id = result
+                        status_code = 201
+                        response_data = {"status": "success", "order_id": order_id}
+                        
+                        #cookie logic below
+                        customer_name = api_data.get("from_name", "")
+                        remember = api_data.get("remember_me", False) 
+                        if remember and customer_name:
+                            #sanitize name (note that this *does* get rid of spaces, but the write up said to do that)
+                            sanitized_name = re.sub(r'[^a-zA-Z0-9]', '', customer_name)
+                            if sanitized_name: 
+                                #set the cookie header to remember
+                                response_headers["Set-Cookie"] = f"customer_name={sanitized_name}; Path=/; Max-Age=31536000; SameSite=Lax" 
                         else:
-                            response_body = open("static/html/order_fail.html").read()
-                            return response_body, 400, response_headers
-                    
-                    case _:
-                         pass #falls through to 404
+                            #check if cookie exists to delete it
+                            cookie_header = request_headers.get("Cookie", "")
+                            existing_name = ""
+                            if cookie_header:
+                                try:
+                                    cookies = read_cookies(cookie_header)
+                                    existing_name = cookies.get("customer_name", "")
+                                except ValueError:
+                                    pass #ignore if cookie header is messed up
+                            
+                            if existing_name:
+                                #delete cookie
+                                response_headers["Set-Cookie"] = f"customer_name=; Path=/; Max-Age=0; SameSite=Lax"
+                    else: #error in creating the order. The below chunk is just a way to determine what error to send back 
+                          #(although Kluver said in a Slack post that he hadn't originally considered this iirc)
+                        errors = result
+                        for error in errors:
+                            if error == "characters":
+                                length_errors = True
+                                break
+                        if length_errors:
+                            status_code = 413
+                            response_data = {"status": "error", "errors": length_errors} 
+                        else:
+                            status_code = 400
+                            response_data = {"status": "error", "errors": [err for err in errors]}
+
+                    return json.dumps(response_data), status_code, response_headers
+                case "/ship_order":
+                        params = parse_query_parameters(request_body or "")
+                        if ship_order(params):
+                            response_headers["Content-Type"] = "text/plain; charset=utf-8"
+                            return "Success", 201, response_headers
+                        else:
+                            response_headers["Content-Type"] = "text/plain; charset=utf-8"
+                            return "Failure", 400, response_headers
+
+                case "/update_shipping":
+                    params = parse_query_parameters(request_body or "")
+                    if update_shipping_info(params):
+                        response_body = render_order_success(params["id"])
+                        return response_body, 200, response_headers
+                    else:
+                        response_body = open("static/html/order_fail.html").read()
+                        return response_body, 400, response_headers
+                
+                case _:
+                        pass #falls through to 404
 
         elif request_method == "DELETE":
             if url == "/api/cancel_order":
@@ -852,41 +812,37 @@ def server(
                 if "application/json" not in content_type:
                     return "", 400, {"Content-Type": "text/plain"} 
 
-                #parse JSON body
+                #attempt to parse JSON body
                 try:
                     #referenced https://docs.python.org/3/library/json.html for JSON decoding
                     data = json.loads(request_body or "{}")
                     order_id_to_cancel = str(data.get("order_id", ""))
-                except (json.JSONDecodeError, AttributeError):
-                    # Invalid JSON or missing order_id key
+                except:
+                    #invalid JSON or missing order_id key
                     return "", 400, {"Content-Type": "text/plain"}
 
-                # 3. Call cancellation logic
+                #call cancellation
                 result = cancel_order_api(order_id_to_cancel)
 
-                # 4. Return appropriate status code
                 if result == "success":
-                    # 204 No Content for successful deletion
-                    return "", 204, {} # No body, no specific headers needed
+                    return "", 204, {} #no body so we don't need headers
                 elif result == "not_found":
-                    # 404 Not Found if ID invalid or doesn't exist
                     return "", 404, {"Content-Type": "text/plain"}
                 elif result == "not_cancellable":
-                    # 400 Bad Request if order status prevents cancellation
                     return "", 400, {"Content-Type": "text/plain"}
             
             else:
-                 pass # Other DELETE requests fall through to 404
+                 pass #fall through to 404
         
     except FileNotFoundError:
         response_body = open("static/html/404.html", encoding="utf-8").read()
         return response_body, 404, response_headers
     except Exception as e:
-        print(f"!!! SERVER ERROR: {e} !!!") # Log the error
+        print(f"Server error: {e}")
         response_body = "<h1>500 Internal Server Error</h1>"
         return response_body, 500, response_headers
 
-    # Default 404 if nothing else matched
+    #404 if nothing else matched
     response_body = open("static/html/404.html", encoding="utf-8").read()
     return response_body, 404, response_headers
 
