@@ -1,0 +1,14 @@
+//- Used https://html-to-pug.com/ to convert my normal 404 page
+doctype html
+head
+    title 404 page
+    meta(charset='UTF-8')
+    link(rel='stylesheet' href='/static/css/main.css')
+ul.nav-bar
+    li
+        a.nav-button(href='/about') Home page
+    li
+        a.nav-button(href='/orders') Orders (admin)
+    li
+        a.nav-button(href='/order') Place Order
+p#shipping-status.body-text(style='padding:10px 10px;') Error 404: File Not Found
