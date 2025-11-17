@@ -124,6 +124,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 toggleQuantityField(); 
                 updateTotalCost(); 
             }
+            else { //error with placing the order
+                let errorMessages = result.data.errors.join('<br>');
+                messageArea.innerHTML = "<strong>Error placing order:</strong><br>" + errorMessages;
+                messageArea.style.color = "red";
+                console.error("Server returned error:", result.status, result.data.errors);
+            }
         });
     });
 
