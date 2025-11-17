@@ -12,7 +12,7 @@ app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
 
-//TODO: Fix the customer_placeholder_name thing with order.pug
+//TODO: Complete the extra credit
 
 let orders = [
     {
@@ -23,7 +23,7 @@ let orders = [
         address: "Billy Corgan<br>123 Easy Street<br>Saint Paul, MN 55123",
         product: "Angry stickman",
         notes: "Gift wrapped",
-        orderDate: "2025-10-01T10:30:00.000Z",
+        orderDate: new Date("2025-10-01T10:30:00.000Z"),
         shipping: "Ground"
     },
     {
@@ -34,7 +34,7 @@ let orders = [
         address: "Thom Yorke<br>456 Crescent Ave<br>Brooklyn, NY 11215",
         product: "Wobbly stickman",
         notes: "N/A",
-        orderDate: "2025-10-03T14:15:00.000Z",
+        orderDate: new Date("2025-10-03T14:15:00.000Z"),
         shipping: "Expedited"
     },
     {
@@ -45,7 +45,7 @@ let orders = [
         address: "Kurt Cobain<br>789 River Rd<br>Seattle, WA 98109",
         product: "2x Pleased stickman",
         notes: "Wait he's alive?",
-        orderDate: "2025-10-10T09:00:00.000Z",
+        orderDate: new Date("2025-10-10T09:00:00.000Z"),
         shipping: "Expedited"
     },
     {
@@ -56,7 +56,7 @@ let orders = [
         address: "Stevie Nicks<br>1550 Golden Rd<br>Los Angeles, CA 90026",
         product: "Angry stickman",
         notes: "Fast shipping please",
-        orderDate: "2025-09-15T11:45:00.000Z",
+        orderDate: new Date("2025-09-15T11:45:00.000Z"),
         shipping: "Ground"
     },
     {
@@ -67,7 +67,7 @@ let orders = [
         address: "Anthony Kiedis<br>900 Venice Blvd<br>Venice, CA 90291",
         product: "4x Wobbly stickman",
         notes: "N/A",
-        orderDate: "2025-10-09T16:20:00.000Z",
+        orderDate: new Date("2025-10-09T16:20:00.000Z"),
         shipping: "Flat rate"
     },
     {
@@ -78,7 +78,7 @@ let orders = [
         address: "Dan Auerbach<br>4131 Rubber Factory Ln<br>Akron, OH 44304",
         product: "2x Angry stickman",
         notes: "Leave with neighbor if not home.",
-        orderDate: "2025-10-05T18:00:00.000Z",
+        orderDate: new Date("2025-10-05T18:00:00.000Z"),
         shipping: "Ground"
     },
     {
@@ -89,7 +89,7 @@ let orders = [
         address: "Jack White<br>777 Cass Corridor St<br>Detroit, MI 48201",
         product: "Pleased stickman",
         notes: "Birthday gift for sister.",
-        orderDate: "2025-09-20T12:10:00.000Z",
+        orderDate: new Date("2025-09-20T12:10:00.000Z"),
         shipping: "Ground"
     },
     {
@@ -100,10 +100,10 @@ let orders = [
         address: "Kevin Parker<br>200 Lonerism Way<br>Perth, WA 6000, Australia",
         product: "3x Pleased stickman",
         notes: "N/A",
-        orderDate: "2025-10-20T12:10:00.000Z",
+        orderDate: new Date("2025-10-20T12:10:00.000Z"),
         shipping: "Flat rate"
     }
-]
+];
 
 //constant values I either check against or for my personal reference
 const shipping_statuses = ["Delivered", "Placed", "Shipped", "Cancelled"]
@@ -117,14 +117,13 @@ const max_address_length = 1024
 //Helper functions
 
 //function to mark an order as shipped once the countdown ends
-function ship_order(orderJSON) {
-    let updatingID = orderJSON.id
-    if (typeof (updatingID) !== "number"){
+function ship_order(orderID) {
+    orderID = parseInt(orderID)
+    if (typeof (orderID) !== "number"){
         return false;
     }
-
     for (let order of orders){
-        if (updatingID === order.id){
+        if (orderID === order.id){
             if (order.status === "Placed") {
                 order.status = "Shipped"
                 return true //order has been updated from "placed" to "shipped" status successfully
@@ -138,7 +137,7 @@ function ship_order(orderJSON) {
 
 //function to update the shipping info of an order with the input params
 function update_shipping_info(params) {
-    const order_id_str = params.id || ""; // Get ID, default to empty string
+    const order_id_str = params.id || "";
 
     //check if ID is a valid number
     const order_id = parseInt(order_id_str, 10);
@@ -171,12 +170,12 @@ function processApiOrder(data) {
 
     //check for missing fields
     for (const field of requiredFields) {
-        if (!data[field]) { // Check if field is missing or empty
+        if (!data[field]) { //check if field is missing or empty
             errors.push(`Missing required field: ${field}`);
         }
     }
     if (errors.length > 0) {
-        return { success: false, errors: errors }; // Stop validation if fields are missing
+        return { success: false, errors: errors }; //stop if fields are missing
     }
 
     //verify name/address lengths aren't too long
@@ -211,22 +210,21 @@ function processApiOrder(data) {
         status: "Placed",
         cost: prices[product] * quantity,
         from: from_name,
-        address: address.replace(/\n/g, "<br>"), // Store with <br>
+        address: address.replace(/\n/g, "<br>"),
         product: `${quantity}x ${product.charAt(0).toUpperCase() + product.slice(1)}`,
-        notes: data.notes || "N/A", // Get notes if provided
-        orderDate: order_date, // Use JS camelCase
+        notes: data.notes || "N/A", //get notes if provided
+        orderDate: order_date,
         shipping: shipping
-        // Note: You may want to add 'ship_by_date' logic here if you keep it
     };
     orders.push(new_order);
     console.log(`API added new order with ID: ${new_id}`);
-    return { success: true, id: new_id }; // Return success and the new ID
+    return { success: true, id: new_id }; //return success and the new ID
 }
 
 function cancel_order_api(order_id_str) {
     //ensure digit is a number, referenced https://stackoverflow.com/questions/9011524/regex-to-check-whether-a-string-contains-only-numbers
     if (!/^\d+$/.test(order_id_str)) {
-        return "not_found"; // Invalid ID format
+        return "not_found"; //invalid ID format
     }
 
     const order_id = parseInt(order_id_str, 10);
@@ -245,11 +243,10 @@ function cancel_order_api(order_id_str) {
         }
     }
 
-    // No order with that valid ID was found
-    return "not_found";
+    return "not_found"; //no order with input ID was found
 }
 
-//typeset money, referenced https://expressjs.com/en/api.html
+//typeset money, referenced https://expressjs.com/en/api.html to create a global function
 app.locals.typeset_dollars = function(number) {
     if (typeof number !== 'number') {
         console.log("invalid input given to typeset_dollars: ", number);
@@ -258,47 +255,49 @@ app.locals.typeset_dollars = function(number) {
     return `$${number.toFixed(2)}`;
 }
 
-app.locals.format_date = function(dateString) {
-    if (!dateString) return "N/A";
+//function to take a stored date object and make it human readable
+app.locals.format_date = function(dateObject) {
+    //check if input is a valid date object
+    if (!dateObject || !(dateObject instanceof Date)) {
+        return "N/A";
+    }
 
-    // Create a Date object from the ISO string
-    const date = new Date(dateString);
-
-    // Format to a readable string, e.g., "2025-10-01 10:30:00"
-    // We can use toLocaleString with options to get a clean format
-    return date.toLocaleString('en-CA', { // 'en-CA' gives a YYYY-MM-DD format
+    //referenced https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString
+    return dateObject.toLocaleString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        hour12: false // Use 24-hour time
-    }).replace(',', ''); // Clean up the format
+        hour12: false
+    }).replace(',', ''); //clean up the format
 }
+
 
 
 //Referenced https://dev.to/gathoni/express-req-params-req-query-and-req-body-4lpc for pretty much anything with dynamic html
 
 //GET methods
+
+//home page
 app.get(["/", "/about"], (req, res) => {
     res.status(200)
     res.render('about.pug')
 })
 
+//place an order page
 app.get("/order", (req, res) => {
-    res.status(404)
-    res.render('order.pug')
-})
+    let customer_name = req.cookies.customer_name || "";
+    res.status(200).render('order.pug', {
+        customer_name: customer_name
+    });
+});
 
+//order fail page
 app.get("/order_fail", (req, res) => {
     res.status(200)
     res.render('order_fail.pug')
-})
-
-app.get("/404", (req, res) => {
-    res.status(404)
-    res.render('404.pug')
 })
 
 //Render the tracking page for an order given its ID
@@ -355,7 +354,7 @@ app.get(['/orders', '/admin/orders'], (req, res) => {
     //get all the filters from the query (pretty much the same as my python code)
     let order_number_raw = (req.query.order_number || "").trim();
     let status_raw = (req.query.status || "").trim();
-    let sender_raw = (req.query.query || "").trim(); // 'query' is the name in your form
+    let sender_raw = (req.query.query || "").trim();
     let filtered_orders = [];
     let error_message = null;
     let search_message_parts = [];
@@ -421,25 +420,24 @@ app.post("/update_shipping", (req, res) => {
     }
 });
 
+app.post("/ship_order", (req, res) => {
+    console.log("ATTEMPTING TO SHIP ORDER: " + req.body.id)
+    if (ship_order(req.body.id)) {
+            res.status(200).end()
+        }
+    else {
+        res.status(400).end() //failure
+    }
+});
+
 app.post("/api/order", (req, res) => {
 
-    // 1. Check Content-Type header
+    //check Content-Type header
     const contentType = req.headers['content-type'] || '';
     if (!contentType.includes('application/json')) {
         res.status(400).json({
             status: "error",
             errors: ["Request header 'Content-Type' must be 'application/json'"]
-        });
-        return;
-    }
-
-    // 2. Validate and process the order (req.body is already parsed by express.json())
-    // Note: express.json() handles malformed JSON automatically,
-    // but we can add this for perfect replication of your Python logic.
-    if (!req.body) {
-        res.status(400).json({
-            status: "error",
-            errors: ["Invalid JSON format in request body"]
         });
         return;
     }
@@ -452,26 +450,26 @@ app.post("/api/order", (req, res) => {
         const customer_name = req.body.from_name || "";
         const remember = req.body.remember_me || false;
 
-        // --- Cookie Logic ---
+        //cookie logic
         if (remember && customer_name) {
-            // Sanitize name (like your Python re.sub)
+            //sanitize name
             const sanitized_name = customer_name.replace(/[^a-zA-Z0-9]/g, '');
             if (sanitized_name) {
-                // Set the cookie using res.cookie()
+                //set the cookie using res.cookie()
                 res.cookie('customer_name', sanitized_name, {
                     path: '/',
-                    maxAge: 31536000000 // 1 year in milliseconds
+                    maxAge: 31536000000 //1 year in milliseconds
                 });
             }
         } else {
-            // Check if cookie exists to delete it (using req.cookies)
+            //check if cookie exists to delete it
             if (req.cookies.customer_name) {
-                // Delete cookie
+                //delete cookie (referenced https://www.geeksforgeeks.org/web-tech/express-js-res-clearcookie-function/)
                 res.clearCookie('customer_name', { path: '/' });
             }
         }
 
-        // Send 201 Created response
+        //send 201 Created response
         res.status(201).json({
             status: "success",
             order_id: order_id
@@ -484,13 +482,13 @@ app.post("/api/order", (req, res) => {
         //check for length errors to return 413
         const lengthErrors = errors.filter(err => err.includes("characters"));
         if (lengthErrors.length > 0) {
-            // Return 413 Content Too Large
+            //return 413 Content Too Large
             res.status(413).json({
                 status: "error",
                 errors: lengthErrors
             });
         } else {
-            // Return 400 Bad Request for other validation errors
+            //return 400 Bad Request for other validation errors
             const otherErrors = errors.filter(err => !err.includes("characters"));
             res.status(400).json({
                 status: "error",
@@ -530,6 +528,11 @@ app.delete("/api/cancel_order", (req, res) => {
     } else if (result === "not_cancellable") {
         res.status(400).send("Order cannot be cancelled");
     }
+});
+
+//404 page is the default if nothing else works
+app.use((req, res) => {
+    res.status(404).render('404.pug');
 });
 
 app.listen(port, () => {
