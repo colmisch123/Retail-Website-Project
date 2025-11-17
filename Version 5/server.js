@@ -3,8 +3,8 @@ const app = express()
 const port = 4131
 const cookieParser = require('cookie-parser')
 
-app.set("views", "resources/templates")
 app.set("view engine", "pug")
+app.set("views", "templates")
 app.use('/css', express.static('resources/css'))
 app.use('/js', express.static('resources/js'))
 app.use('/images', express.static('resources/images'))
@@ -121,7 +121,7 @@ const max_address_length = 1024
 
 
 
-//Helper functions
+//Helper functions for changing orders and whatnot
 
 //function to mark an order as shipped once the countdown ends
 function ship_order(orderID) {
@@ -181,25 +181,21 @@ function processApiOrder(data) {
             errors.push(`Missing required field: ${field}`);
         }
     }
-    if (errors.length > 0) {
-        return { success: false, errors: errors }; //stop if fields are missing
-    }
 
     //verify name/address lengths aren't too long
     const from_name = data.from_name || "";
     const address = data.address || "";
+    const product = data.product;
+    const quantity = parseInt(data.quantity, 10);
+    const shipping = data.shipping;
+
     if (from_name.length >= max_name_length) {
         errors.push(`Sender name must be less than ${max_name_length} characters`)}
     if (address.length >= max_address_length) {
         errors.push(`Address must be less than ${max_address_length} characters`)}
 
-    //other validation
-    const product = data.product;
-    const quantity = parseInt(data.quantity, 10);
-    const shipping = data.shipping;
-
     if (isNaN(quantity) || quantity <= 0) {
-        errors.append("Quantity must be a positive integer")}
+        errors.push("Quantity must be a positive integer")}
     if (!prices[product]) {
         errors.push("Unrecognized product")}
     if (!valid_shipping_options.includes(shipping)) {
@@ -219,7 +215,7 @@ function processApiOrder(data) {
         from: from_name,
         address: address.replace(/\n/g, "<br>"),
         product: `${quantity}x ${product.charAt(0).toUpperCase() + product.slice(1)}`,
-        notes: data.notes || "N/A", //get notes if provided
+        notes: data.notes || "N/A",
         orderDate: order_date,
         shipping: shipping
     };
@@ -460,7 +456,7 @@ app.post("/api/order", (req, res) => {
         //cookie logic
         if (remember && customer_name) {
             //sanitize name
-            const sanitized_name = customer_name.replace(/[^a-zA-Z0-9]/g, '');
+            const sanitized_name = customer_name.replace(/[^a-zA-Z0-9 ]/g, '');
             if (sanitized_name) {
                 //set the cookie using res.cookie()
                 res.cookie('customer_name', sanitized_name, {
@@ -485,23 +481,30 @@ app.post("/api/order", (req, res) => {
     //failure
     } else {
         const errors = result.errors;
+        let status_code = 400; //default error code of 400
+        let response_data = {};
+        //check if any length errors occurred
+        let lengthErrors = [];
+        let otherErrors = [];
 
-        //check for length errors to return 413
-        const lengthErrors = errors.filter(err => err.includes("characters"));
-        if (lengthErrors.length > 0) {
-            //return 413 Content Too Large
-            res.status(413).json({
-                status: "error",
-                errors: lengthErrors
-            });
-        } else {
-            //return 400 Bad Request for other validation errors
-            const otherErrors = errors.filter(err => !err.includes("characters"));
-            res.status(400).json({
-                status: "error",
-                errors: otherErrors
-            });
+        // Loop through every error in the errors list
+        for (let i = 0; i < errors.length; i++) {
+            let error = errors[i];
+            if (error.indexOf("characters") !== -1) {
+                lengthErrors.push(error);
+            } else {
+                otherErrors.push(error);
+            }
         }
+        if (lengthErrors.length > 0) {
+            //found a length error, set status to 413
+            status_code = 413;
+            response_data = {"status": "error", "errors": lengthErrors};
+        } else {
+            response_data = {"status": "error", "errors": otherErrors};
+        }
+        //send the response
+        res.status(status_code).json(response_data);
     }
 });
 
