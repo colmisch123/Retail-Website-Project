@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         //cleaning up the right side by removing order updating forms
                         let updateForm = document.querySelector('form[action="/update_shipping"]'); 
                         if(updateForm) updateForm.remove();
-                        cancelButton.remove(); // Remove the button itself
+                        cancelButton.remove(); //remove the button itself
 
                         //editing top text in the left box when order ships
                         let statusDisplay = document.querySelector(".flex-container#shipping-status p"); 
