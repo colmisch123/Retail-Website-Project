@@ -1,7 +1,7 @@
 //wait for the whole HTML page to load before running any script. Referenced https://oxylabs.io/resources/web-scraping-faq/javascript/wait-page-load 
 document.addEventListener("DOMContentLoaded", function() {
-    // --- Get references to form elements ---
-    let theForm = document.querySelector("#form-collection"); 
+    //console.log("order.js is working")
+    let theForm = document.querySelector("#form-collection");
     let productSelect = document.getElementById("product");
     let quantityInput = document.getElementById("order_quantity");
     let totalCostDisplay = document.getElementById("total_cost");

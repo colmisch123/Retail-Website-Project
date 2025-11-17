@@ -1,6 +1,7 @@
 //wait for the whole HTML page to load before running any script. Referenced https://oxylabs.io/resources/web-scraping-faq/javascript/wait-page-load 
 document.addEventListener("DOMContentLoaded", function() {
 
+    let timerInterval = null;
     let cancelButton = document.getElementById("cancel-order-button"); 
     let cancelMessageArea = document.getElementById("cancel-message-area"); //message area to tell if an order was successful (hidden by default)
     let countdownElement = document.getElementById("countdown-timer");
@@ -59,13 +60,13 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             }
             updateTimer(); 
-            var timerInterval = setInterval(updateTimer, 1000);
+            timerInterval = setInterval(updateTimer, 1000);
         }
     }
 
     //cancel order logic
         cancelButton.addEventListener("click", function() {
-        let orderId = countdownElement.getAttribute("data-order-id"); // Get ID from timer data
+        let orderId = countdownElement.getAttribute("data-order-id"); //get ID from timer data
         
         //referenced https://www.w3schools.com/jsref/met_win_confirm.asp for a confirm window
         if (!confirm("Are you sure you want to cancel order #" + orderId + "?")) {
@@ -81,12 +82,15 @@ document.addEventListener("DOMContentLoaded", function() {
             body: JSON.stringify({order_id:orderId}) 
         })
         .then(function(response) {
-            if (response.status === 204) { // Success! (No Content)
+            if (response.status === 204) { //success in cancelling
                 cancelMessageArea.textContent = "Order #" + orderId + " successfully cancelled.";
                 cancelMessageArea.style.color = "green";
-                
+
+                //update the table
+                let tableStatusDisplay = document.querySelector("#current-status");
+                tableStatusDisplay.textContent = "Cancelled";
                 //update status message
-                let statusDisplay = document.querySelector(".flex-container#shipping-status p"); 
+                let statusDisplay = document.querySelector(".flex-container#shipping-status p");
                 if(statusDisplay) statusDisplay.textContent = "This order has been cancelled.";
                 
                 //update countdown text

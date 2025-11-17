@@ -3,8 +3,8 @@ doctype html
 head
     title Ordering Form
     meta(charset='UTF-8')
-    link(rel='stylesheet' href='/static/css/main.css')
-    script(src='/static/js/order.js')
+    link(rel='stylesheet' href='/css/main.css')
+    script(src='/js/order.js')
 // Links
 include nav_bar
 #title.flex-container
@@ -16,7 +16,7 @@ form#form-collection.flex-container(method='POST' action='/order')
     .form-group
         label(for='product') Select a product:
         select#product(name='product' required='')
-            // Honestly I wish I could implement this in a more dynamic way because adding/removing items is a pain in the butt
+            //- could be smart to automate this process, but this is fine for now
             option(value='') None selected
             option(value='Angry stickman') Angry stickman - $5.99
             option(value='Wobbly stickman') Wobbly stickman - $7.00
@@ -44,7 +44,7 @@ form#form-collection.flex-container(method='POST' action='/order')
     .form-group
         label(for='sender') From:
         br
-        textarea#sender(name='sender' placeholder='Please input sender name...' required='' rows='4' cols='50') customer_name_placeholder
+        textarea#sender(name='sender' placeholder='Please input sender name...' required='' rows='4' cols='50') #{customer_name || ""}
         //Need to replace this with JS stuff.
     // Recipient/Address text box
     .form-group
@@ -59,6 +59,6 @@ form#form-collection.flex-container(method='POST' action='/order')
     .form-group(style='flex-direction: row; align-items: center;')
         input#remember_me(type='checkbox' name='remember_me' value='true' checked='')
         label(for='remember_me' style='margin-left: 5px; font-weight: normal;') Remember me?
-    .form-group
-        button(type='submit') Submit
+    .form-group(style='flex-direction: row; align-items: center;')
+        button(type='submit' style='margin: 0 10px') Submit
         button#prefill_button(type='button') Prefill Form
