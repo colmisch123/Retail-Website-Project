@@ -12,8 +12,15 @@ app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
 
-//TODO: Complete the extra credit
+//extra credit (referenced https://stackoverflow.com/questions/11137648/how-do-i-capture-a-response-end-event-in-node-jsexpress)
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        console.log(`Method: ${req.method}   |   Url: ${req.originalUrl}   |   Status code: ${res.statusCode}   |   Total Orders: ${orders.length})`);
+    });
+    next();
+});
 
+//order collection
 let orders = [
     {
         id: 0,
@@ -217,7 +224,7 @@ function processApiOrder(data) {
         shipping: shipping
     };
     orders.push(new_order);
-    console.log(`API added new order with ID: ${new_id}`);
+    console.log(`Added new order with ID: ${new_id}`);
     return { success: true, id: new_id }; //return success and the new ID
 }
 
@@ -421,9 +428,9 @@ app.post("/update_shipping", (req, res) => {
 });
 
 app.post("/ship_order", (req, res) => {
-    console.log("ATTEMPTING TO SHIP ORDER: " + req.body.id)
+    console.log("Attempting to ship order #" + req.body.id)
     if (ship_order(req.body.id)) {
-            res.status(200).end()
+            res.status(200).end() //success
         }
     else {
         res.status(400).end() //failure
