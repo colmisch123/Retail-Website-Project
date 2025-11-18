@@ -1,0 +1,19 @@
+//Used html-to-pug.com to convert my render_order_success(order_id) function from server.py
+
+doctype html
+head
+    title Order Success!
+    link(rel='stylesheet' href='/css/main.css')
+    meta(charset='UTF-8')
+include nav_bar
+#title.flex-container
+    h2
+        | Order #{change_method || "updated"} Successfully!
+#shipping-status.flex-container(style='width: 40%')
+    p
+        | Your order has been updated with ID:&nbsp;
+        strong #{order_id}
+    br
+    p
+        //- Referenced https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+        a(href=`/tracking/${order_id}`) Click here to track your order.
