@@ -17,6 +17,7 @@ app.use(cookieParser())
 //TODO: New orders are immediately marked as shipped. I think ship_order is somehow being called immediately from like update.js or whatever.
 //TODO: orders page shows a shipped order as "Placed."
 //TODO: Maybe the order itself isn't getting updated, but the JS in the tracking page is only showing that it is?!?!
+//Jackson thinks its an issue with date time compatibility and time zones or something?
 
 //TODO: Should find a way to implement all data.js functions, currently need updateOrder and getOrderHistory (and probably more usage of updateOrderStatuses idk)
 //TODO: Get rid of old helper functions
