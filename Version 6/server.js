@@ -13,20 +13,20 @@ app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
 
-//Known bugs and whatnot
-//TODO: New orders are immediately marked as shipped. I think ship_order is somehow being called immediately from like update.js or whatever.
-//TODO: orders page shows a shipped order as "Placed."
-//TODO: Maybe the order itself isn't getting updated, but the JS in the tracking page is only showing that it is?!?!
-//Jackson thinks its an issue with date time compatibility and time zones or something?
+//this block runs any time a request is made to the server.
+app.use(async (req, res, next) => {
 
-//TODO: Should find a way to implement all data.js functions, currently need updateOrder and getOrderHistory (and probably more usage of updateOrderStatuses idk)
-//TODO: Get rid of old helper functions
+    //call updateOrderStatuses with every request to the server
+    let result = await db.updateOrderStatuses();
+    if (result === -1){
+        console.log("Error: Something went wrong when trying to call updateOrderStatuses() in data.js");
+    }
 
-//extra credit (referenced https://stackoverflow.com/questions/11137648/how-do-i-capture-a-response-end-event-in-node-jsexpress)
-app.use((req, res, next) => {
-    res.on('finish', () => {
-        console.log(`Method: ${req.method}   |   Url: ${req.originalUrl}   |   Status code: ${res.statusCode}   |   Total Orders: ${db.getOrders().length})`);
+    //print out server meta information (extra credit for hw 5), referenced https://stackoverflow.com/questions/11137648/how-do-i-capture-a-response-end-event-in-node-jsexpress)
+    res.on('finish', async () => {
+        console.log(`Method: ${req.method}   |   Url: ${req.originalUrl}   |   Status code: ${res.statusCode}   |   Total Orders: ${(await db.getOrders()).length}`);
     });
+
     next();
 });
 
@@ -38,98 +38,6 @@ const prices = {"Angry stickman": 5.99, "Wobbly stickman": 7.50, "Pleased stickm
 const max_name_length = 64
 const max_address_length = 1024
 
-
-//TODO: delete and refactor this
-//function to update the shipping info of an order with the input params
-function update_shipping_info(params) {
-    const order_id_str = params.id || "";
-
-    //check if ID is a valid number
-    const order_id = parseInt(order_id_str, 10);
-    if (isNaN(order_id)) {
-        return false;
-    }
-
-    //find the order by its ID
-    const order = orders.find(o => o.id === order_id);
-    if (!order) {
-        return false; //order not found
-    }
-
-    //check status after finding the order
-    if (order.status === "Placed") {
-        order.shipping = params.shipping || order.shipping; //update shipping status
-        if (params.address) { //update address if provided
-            order.address = params.address.replace(/\n/g, "<br>");}
-        if (params.notes) { //update notes if provided
-            order.notes = params.notes.replace(/\n/g, "<br>");}
-        return true;
-    } else {
-        return false; //found the order but can't edit it
-    }
-}
-
-async function processApiOrder(data) {
-    let errors = [];
-    const requiredFields = ["product", "from_name", "quantity", "address", "shipping"];
-
-    //check for missing fields
-    for (const field of requiredFields) {
-        if (!data[field]) { //check if field is missing or empty
-            errors.push(`Missing required field: ${field}`);
-        }
-    }
-
-    //verify name/address lengths aren't too long
-    const from_name = data.from_name || "";
-    const address = data.address || "";
-    const product = data.product;
-    const quantity = parseInt(data.quantity, 10);
-    const shipping = data.shipping;
-
-    if (from_name.length >= max_name_length) {
-        errors.push(`Sender name must be less than ${max_name_length} characters`)
-    }
-    if (address.length >= max_address_length) {
-        errors.push(`Address must be less than ${max_address_length} characters`)
-    }
-
-    if (isNaN(quantity) || quantity <= 0) {
-        errors.push("Quantity must be a positive integer")
-    }
-    if (!prices[product]) {
-        errors.push("Unrecognized product")
-    }
-    if (!valid_shipping_options.includes(shipping)) {
-        errors.push("Invalid shipping method")
-    }
-
-    //return errors if any were found
-    if (errors.length > 0) {
-        return {success: false, errors: errors}
-    }
-
-    //create the order
-    const order_date = new Date().toISOString();
-    const new_order = {
-        status: "Placed",
-        cost: prices[product] * quantity,
-        from_name: from_name,
-        address: address.replace(/\n/g, "<br>"),
-        product: `${quantity}x ${product.charAt(0).toUpperCase() + product.slice(1)}`,
-        notes: data.notes || "N/A",
-        order_date: order_date,
-        shipping: shipping
-    };
-    let result = await db.addOrder(new_order);
-    if (result === -1) {
-        console.log("Failure to create order");
-        return {success: false, id: -1}; //return success and the new ID
-    } else{
-        console.log(`Added new order with ID: ${result}`);
-        return {success: true, id: result}; //return success and the new ID
-    }
-}
 
 //typeset money, referenced https://expressjs.com/en/api.html to create a global function
 app.locals.typeset_dollars = function(number) {
@@ -144,7 +52,7 @@ app.locals.typeset_dollars = function(number) {
     }
 }
 
-//function to take a stored date object and make it human readable
+//function to take a stored date object and make it human-readable
 app.locals.format_date = function(dateObject) {
     //check if input is a valid date object
     if (!dateObject || !(dateObject instanceof Date)) {
@@ -163,11 +71,20 @@ app.locals.format_date = function(dateObject) {
     }).replace(',', ''); //clean up the format
 }
 
-
-
 //Referenced https://dev.to/gathoni/express-req-params-req-query-and-req-body-4lpc for pretty much anything with dynamic html
+//GET functions
 
-//GET methods
+//Return 5 most recent orders for a given id
+app.get("/api/order/:id/history", async (req, res) => {
+    try {
+        const history = await db.getOrderHistory(req.params.id);
+        // Send the data as JSON, don't just return it
+        res.status(200).json(history);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Server Error" });
+    }
+});
 
 //home page
 app.get(["/", "/about"], (req, res) => {
@@ -192,9 +109,8 @@ app.get("/order_fail", (req, res) => {
 //Render the tracking page for an order given its ID
 app.get('/tracking/:id', async (req, res) => {
 
-    await db.updateOrderStatuses(); //update all statuses
-
     const order = await db.getOrder(req.params.id); //get order from db
+    let updateHistory = await db.getOrderHistory(req.params.id);
 
     if (!order) { //no order found, render 404
         res.status(404).render('404.pug');
@@ -227,10 +143,10 @@ app.get('/tracking/:id', async (req, res) => {
     const isExpedited = order.shipping === "Expedited";
     //format the date
     const formattedOrderDate = new Date(order.order_date).toLocaleString('en-US');
-
     res.status(200).render('tracking.pug', {
         order: order,
         orderStatus: orderStatus,
+        updateHistory: updateHistory,
         statusMessage: statusMessage,
         addressForTextarea: addressForTextarea,
         notesForTextarea: notesForTextarea,
@@ -242,8 +158,6 @@ app.get('/tracking/:id', async (req, res) => {
 });
 
 app.get(['/orders', '/admin/orders'], async (req, res) => {
-    // Call updateOrderStatuses to ensure data is fresh
-    await db.updateOrderStatuses();
 
     //get all the filters from the query (pretty much the same as my python code)
     let order_number_raw = (req.query.order_number || "").trim();
@@ -306,7 +220,13 @@ app.get(['/orders', '/admin/orders'], async (req, res) => {
 
 //update the shipping info of an order given input params for it.
 app.post("/update_shipping", async (req, res) => {
-    if (await db.updateOrder(req.body)) {
+    //extract update info from the request body
+    let id = req.body.id;
+    let shipping = req.body.shipping || null;
+    let address = req.body.address || null;
+    let notes = req.body.notes || null;
+
+    if (await db.updateOrder(id, shipping, address, notes)) {
         res.status(200).render('order_updated', {
             order_id: req.body.id,
             change_method: "Updated"
@@ -317,23 +237,16 @@ app.post("/update_shipping", async (req, res) => {
 });
 
 app.post("/ship_order", async (req, res) => {
-    const id = parseInt(req.body.id);
+    //i put updateOrderStatuses at the top to be called before every single function in the server.
+    //In theory, that means this route will call it
 
-    if (isNaN(id)) {
-        return res.status(400).send("Invalid ID");
+    order = await db.getOrder(req.body.id);
+    if (order.status.toLowerCase() === "shipped"){
+        //technically, can potentially return 200 for orders that are already shipped which isn't ideal.
+        //But it should be good enough for the purposes of the server.
+        res.status(200).end()
     }
 
-    //call db
-    const result = await db.shipOrder(id);
-    if (result === 200) {
-        res.status(200).send("Success");
-    } else if (result === 404) {
-        res.status(404).send("Order not found");
-    } else if (result === 400) {
-        res.status(400).send("Order cannot be shipped");
-    } else {
-        res.status(500).send("Server Error");
-    }
 });
 
 app.post("/api/order", async (req, res) => {

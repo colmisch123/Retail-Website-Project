@@ -51,7 +51,7 @@ html(lang="en")
                     #shipping-status.flex-container(style='flex-direction:column;')
                         h3 Order Management
                         p#countdown-timer(
-                            data-order-date=order.orderDate,
+                            data-order-date=order.order_date,
                             data-order-status=orderStatus,
                             data-order-id=order.id
                         ) Time remaining until order ships: Calculating...
@@ -84,4 +84,31 @@ html(lang="en")
                     .flex-container(style="justify-content:center;")
                         button#cancel-order-button.cancel-button(type="button") Cancel Order
                     #cancel-message-area(style="margin-top: 15px; font-weight: bold;")
+
+        //wrapper for history to make JS updates easy
+        #history-container
+            if updateHistory && updateHistory.length > 0
+                br
+                .flex-container#body-text(style='margin-left:auto; margin-right:auto; width:65%; padding:5px')
+                    h3#title.flex-container Order History
+                    table#history-order(style='width:90%')
+                        thead
+                            tr
+                                th Update Time
+                                th Status
+                                th Shipping
+                                th Address
+                                th Notes
+                        tbody
+                            each item in updateHistory
+                                tr
+                                    td= format_date(item.update_time)
+                                    td= item.order_status || "Error in tracking.pug with order_status"
+                                    td= item.shipping || "Error in tracking.pug with shipping"
+                                    td!= item.address ? item.address : "Error in tracking.pug with item address"
+                                    td!= item.notes ? item.notes : "N/A"
+            else
+                br
+                p#no-history-msg No history available for this order.
+
         script(src='/js/update.js')

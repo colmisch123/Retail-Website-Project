@@ -31,7 +31,22 @@ async function addOrder(order) {
             order.shipping,
             order.order_date || new Date() //use current time if nothing is inputted here
         ]);
+
+        //update OrderHistories table
+        const insertHistoryQuery = `
+            INSERT INTO OrderHistories (order_id, order_status, shipping, address, notes, update_time) 
+            VALUES (?, 'Placed', ?, ?, ?, NOW())
+        `;
+
+        await connection.execute(insertHistoryQuery, [
+            result.insertId,
+            order.shipping,
+            order.address,
+            order.notes,
+        ]);
+
         return result.insertId; //return the ID of the newly created order
+
     } catch (err) {
         console.error("Error with addOrder() in data.js: ", err);
         return -1;
@@ -68,6 +83,7 @@ async function getOrders(query, status) {
 
 //change the shipping method, address, and notes of an order if its status is "Placed".
 //note that each parameter other than id is optional
+//Also I have the ability to edit the shipping notes for a product.
 async function updateOrder(id, shipping, address, notes) {
     let connection;
     try {
@@ -92,13 +108,14 @@ async function updateOrder(id, shipping, address, notes) {
         //log any update if it happened
         if (result.affectedRows > 0) {
             const historyQuery = `
-                INSERT INTO OrderHistories (order_id, shipping, address, update_time)
-                VALUES (?, ?, ?, NOW())
+                INSERT INTO OrderHistories (order_id, order_status, shipping, address, notes, update_time)
+                VALUES (?, 'Placed', ?, ?, ?, NOW())
             `;
             await connection.execute(historyQuery, [
                 id,
                 shipping || null,
-                address || null
+                address || null,
+                notes || null
             ]);
             return true;
         }
@@ -113,41 +130,48 @@ async function updateOrder(id, shipping, address, notes) {
     }
 }
 
-// In data.js
-
+//given an order id, mark it as Cancelled iff its current status is "Placed"
+//and update its history
 async function cancelOrder(id) {
     let connection;
     try {
         connection = await connPool.getConnection();
-
-        //check if the order exists and get its current status
-        const checkQuery = "SELECT status FROM Orders WHERE id = ?";
+        //check if order exists and get current details for updating the OrderHistories table later
+        const checkQuery = "SELECT status, shipping, address, notes FROM Orders WHERE id = ?";
         const [rows] = await connection.execute(checkQuery, [id]);
-
         if (rows.length === 0) {
-            return "not_found"; //order with given id does not exist
+            return "not_found"; //order ID does not exist
         }
 
-        //check if the status allows cancellation
         const order = rows[0];
+        //check if the status allows cancellation
         if (order.status !== "Placed") {
-            return "not_cancellable"; // Order exists but is already Shipped/Delivered
+            return "not_cancellable"; // Order exists but is already Shipped/Delivered/Cancelled
         }
 
-        //everything is verified, cancel order
+        //update status
         const updateQuery = "UPDATE Orders SET status = 'Cancelled' WHERE id = ?";
         await connection.execute(updateQuery, [id]);
 
-        //log the change in OrderHistories
+        //add to OrderHistories
         const historyQuery = `
-            INSERT INTO OrderHistories (order_id, shipping, update_time) 
-            VALUES (?, 'Cancelled', NOW())`;
-        await connection.execute(historyQuery, [id]);
+            INSERT INTO OrderHistories
+                (order_id, order_status, shipping, address, notes, update_time)
+            VALUES (?, 'Cancelled', ?, ?, ?, NOW())
+        `;
+
+        await connection.execute(historyQuery, [
+            id,
+            order.shipping,
+            order.address,
+            order.notes
+        ]);
+
         return "success";
 
     } catch (err) {
-        console.error("Error in cancelOrder: ", err);
-        return "error"; //database connection issue
+        console.error("Error with cancelOrder() in data.js: ", err);
+        return "error";
     } finally {
         if (connection) connection.release();
     }
@@ -178,32 +202,63 @@ async function getOrder(orderId) {
     }
 }
 
+//this function:
+//1. collects all the orders that need to be shipped
+//2. marks them as shipped
+//3. updates their respective histories.
 async function updateOrderStatuses() {
     let connection;
     try {
         connection = await connPool.getConnection();
 
-        //calculate the cutoff time (5 minutes ago)
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        //calculate the cutoff time (I use 2 minutes ago)
+        const cutoffTime = new Date(Date.now() - 2 * 60 * 1000);
 
-        //change status to "Shipped" if its currently "Placed" and past the cutoff
-        const query = `
-            UPDATE Orders 
-            SET status = 'Shipped' 
-            WHERE status = 'Placed' 
-            AND order_date < ?`;
+        //get all valid shippable orders
+        const selectQuery = `
+            SELECT id, shipping, address, notes FROM Orders
+            WHERE status = 'Placed'
+              AND order_date < ?`;
 
-        const [result] = await connection.execute(query, [fiveMinutesAgo]);
-        return true;
+        const [rows] = await connection.execute(selectQuery, [cutoffTime]);
+
+        if (rows.length === 0) {
+            return 0;
+        }
+
+        let updatedCount = 0;
+        for (const row of rows) {
+            const orderId = row.id;
+            const shippingMethod = row.shipping;
+            const address = row.address;
+            const notes = row.notes;
+
+            //mark the order as shipped
+            await connection.execute(
+                "UPDATE Orders SET status = 'Shipped' WHERE id = ?",
+                [orderId]
+            );
+
+            //update each order's history
+            await connection.execute(
+                "INSERT INTO OrderHistories (order_id, order_status, shipping, address, notes, update_time) VALUES (?, 'Shipped', ?, ?, ?, NOW())",
+                [orderId, shippingMethod, address, notes]
+            );
+            updatedCount++;
+        }
+
+        console.log(`Auto-shipped ${updatedCount} order(s).`);
+        return updatedCount;
 
     } catch (err) {
         console.error("Error with updateOrderStatuses() in data.js: ", err);
-        return false;
+        return -1;
     } finally {
         if (connection) connection.release();
     }
 }
 
+//referenced https://stackoverflow.com/a/46254938/22662111 for LIMIT
 async function getOrderHistory(orderId) {
     let connection;
     try {
@@ -212,7 +267,8 @@ async function getOrderHistory(orderId) {
         const query = `
             SELECT * FROM OrderHistories 
             WHERE order_id = ?
-            ORDER BY update_time DESC`;
+            ORDER BY update_time DESC
+            LIMIT 5`;
         const [rows] = await connection.execute(query, [orderId]);
 
         //return all stored updates, or null if not found
@@ -224,43 +280,12 @@ async function getOrderHistory(orderId) {
 
     } catch (err) {
         console.log("Error with getOrderHistory() in data.js: ", err);
-        return null;
+        return [];
     } finally {
         if (connection) connection.release();
     }
 }
 
-async function shipOrder(id) {
-    let connection;
-    try {
-        connection = await connPool.getConnection();
-
-        //check if the order exists
-        const checkQuery = "SELECT status FROM Orders WHERE id = ?";
-        const [rows] = await connection.execute(checkQuery, [id]);
-
-        if (rows.length === 0) {
-            return 404; //order with given ID not found
-        }
-
-        const currentStatus = rows[0].status;
-        if (currentStatus !== 'Placed') {
-            return 400; //order exists but cannot be shipped
-        }
-
-        //update to shipped
-        const updateQuery = "UPDATE Orders SET status = 'Shipped' WHERE id = ?";
-        await connection.execute(updateQuery, [id]);
-
-        return 200; //success
-
-    } catch (err) {
-        console.error("Error in shipOrder in data.js: ", err);
-        return 500; //server error
-    } finally {
-        if (connection) connection.release();
-    }
-}
 
 module.exports = {
   getOrder,
