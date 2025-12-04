@@ -146,7 +146,7 @@ async function cancelOrder(id) {
         const order = rows[0];
         //check if the status allows cancellation
         if (order.status !== "Placed") {
-            return "not_cancellable"; // Order exists but is already Shipped/Delivered/Cancelled
+            return "not_cancellable"; //order exists but is already Shipped/Delivered/Cancelled
         }
 
         //update status

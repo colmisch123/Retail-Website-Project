@@ -41,11 +41,6 @@ document.addEventListener("DOMContentLoaded", function() {
                             body: 'id=' + orderId
                         }).then(function(response) {
                             if (response.ok) {
-                                console.log("Order updated! Reloading the page.");
-                                // Reload the page to show the new "Shipped" status.
-                                // window.location.reload(); // Commented out to allow dynamic updates to show
-
-
                                 //update Status Text
                                 let statusDisplay = document.querySelector(".flex-container#shipping-status p");
                                 if(statusDisplay) statusDisplay.textContent = "Your order is currently shipping.";

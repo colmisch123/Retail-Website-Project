@@ -78,7 +78,6 @@ app.locals.format_date = function(dateObject) {
 app.get("/api/order/:id/history", async (req, res) => {
     try {
         const history = await db.getOrderHistory(req.params.id);
-        // Send the data as JSON, don't just return it
         res.status(200).json(history);
     } catch (err) {
         console.error(err);
