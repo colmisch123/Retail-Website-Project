@@ -113,7 +113,7 @@ app.get('/tracking/:id', async (req, res) => {
     let updateHistory = await db.getOrderHistory(req.params.id);
 
     if (!order) { //no order found, render 404
-        res.status(404).render('404.pug');
+        return res.status(404).render('404.pug');
     }
 
     //create the message on the page that tells the user more about its status
@@ -236,17 +236,20 @@ app.post("/update_shipping", async (req, res) => {
     }
 });
 
+//just a call to this function will have the server update all orders by default
+//with the first app.use function in the file.
 app.post("/ship_order", async (req, res) => {
-    //i put updateOrderStatuses at the top to be called before every single function in the server.
-    //In theory, that means this route will call it
+    //check ID is sent
+    if (!req.body.id) return res.status(400)
 
-    order = await db.getOrder(req.body.id);
+    const order = await db.getOrder(req.body.id);
+    if (!order) return res.status(404).end(); //ensure order exists
+
     if (order.status.toLowerCase() === "shipped"){
-        //technically, can potentially return 200 for orders that are already shipped which isn't ideal.
-        //But it should be good enough for the purposes of the server.
-        res.status(200).end()
+        res.status(200).end();
+    } else {
+        return res.status(500).end();
     }
-
 });
 
 app.post("/api/order", async (req, res) => {
