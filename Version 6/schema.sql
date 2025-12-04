@@ -25,7 +25,7 @@ CREATE TABLE OrderHistories (
 );
 
 
--- My orders page kept getting filled with ugly looking test orders so this is my solution.
+-- My orders page kept getting filled with ugly looking test orders so this is how I clean things up.
 -- You can just copy and paste these into the terminal when SSH'd into the SQL part of a CSE lab computer.
 
 -- Referenced https://stackoverflow.com/a/9912760/22662111 for this to help with table data deletion.

@@ -13,9 +13,9 @@ app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
 
-//this block runs any time a request is made to the server.
-app.use(async (req, res, next) => {
 
+
+app.use(async (req, res, next) => {
     //call updateOrderStatuses with every request to the server
     let result = await db.updateOrderStatuses();
     if (result === -1){
@@ -26,7 +26,6 @@ app.use(async (req, res, next) => {
     res.on('finish', async () => {
         console.log(`Method: ${req.method}   |   Url: ${req.originalUrl}   |   Status code: ${res.statusCode}   |   Total Orders: ${(await db.getOrders()).length}`);
     });
-
     next();
 });
 
@@ -238,12 +237,12 @@ app.post("/update_shipping", async (req, res) => {
 //just a call to this function will have the server update all orders by default
 //with the first app.use function in the file.
 app.post("/ship_order", async (req, res) => {
-    //check ID is sent
-    if (!req.body.id) return res.status(400)
-
-    const order = await db.getOrder(req.body.id);
+    if (!req.body.id) return res.status(400).end() //check ID is sent
+    let order = await db.getOrder(req.body.id);
     if (!order) return res.status(404).end(); //ensure order exists
 
+    await db.updateOrderStatuses()
+    order = await db.getOrder(req.body.id); //get updated order
     if (order.status.toLowerCase() === "shipped"){
         res.status(200).end();
     } else {
