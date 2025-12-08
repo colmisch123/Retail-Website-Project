@@ -13,6 +13,8 @@ This repo serves as an archive of all iterations of my website project. The webs
 **Version 4**: better compliance with real HTTP standards. Created the ability to store/forget the user's name via cookies. Improved server robustness / ability to handle errors.
 
 **Version 5**: Version 5 is a complete rewrite of the entire backend. The old Python server has been replaced with a Node.js & Express server. All dynamic HTML pages were converted from Python strings into Pug templates. Shares all the features of version 4.
+
+**Version 6**: This version puts all of the data into a remote MySQL database. All of the functions involving CRUD operations have been refactored to reflect this.
 # Running
 To run versions 1-4, simply run the terminal command ```python server.py``` while your terminal is in the respective version directory.
 
@@ -24,3 +26,5 @@ For versions 5 and 6, you will need to do the following:
 2. Navigate to the directory in your terminal (e.g., cd "Version 5").
 3. Install NPM by running the command <code>npm install</code> (only needs to be done on the first time launching) 
 4. To start the server, run the command <code>node server.js</code> and navigate to http://localhost:4131/ in your browser
+
+For version 6 specifically, you would need to connect to the UMN CSE lab computers using my credidentials, which I am not to keen to post publicly.
