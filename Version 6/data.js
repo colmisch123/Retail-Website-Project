@@ -1,11 +1,11 @@
 const mysql = require("mysql2/promise");
 
 var connPool = mysql.createPool({
-  connectionLimit: 5, // it's a shared resource, let's not go nuts.
-  host: "127.0.0.1", // this will work
+  connectionLimit: 5,
+  host: "127.0.0.1",
   user: "C4131F25U87",
   database: "C4131F25U87",
-  password: "7619", // we really shouldn't be saving this here long-term -- and I probably shouldn't be sharing it with you...
+  password: "", //TODO: empty password here, needs to be filled in
 });
 
 //Referenced https://sidorares.github.io/node-mysql2/docs a lot
